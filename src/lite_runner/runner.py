@@ -588,7 +588,7 @@ class Runner:
         logger.info(
             "Run started at %s",
             run_started_at.astimezone().strftime("%H:%M:%S.%f")[:-3]
-            + run_started_at.astimezone().strftime(" %Z"),
+            + run_started_at.astimezone().strftime(" %Z (%z)"),
         )
         if not flags.dry_run:
             exit_code, duration, stdout_text, stderr_text, aborted = r.execute(
