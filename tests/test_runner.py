@@ -821,6 +821,71 @@ def test_execute_env_none_removes_var(tmp_path: Path) -> None:
     assert result["PATH"] is None
 
 
+def test_env_log_set_only(caplog: pytest.LogCaptureFixture) -> None:
+    """Env vars are logged in compact KEY=value format before the command."""
+    runner = Runner(
+        command="echo",
+        params=[Param("x", default="1")],
+        env={"AA": "BBB", "CC": "AA AA", "DD": "aAXa"},
+    )
+    with (
+        patch("lite_runner.runner._collect_git_info", return_value=_FAKE_GIT_INFO),
+        caplog.at_level("INFO", logger="lite_runner"),
+    ):
+        runner.run(dry_run=True, no_interactive=True)
+    out = re.sub(r"\033\[[0-9;]*m", "", caplog.text)
+    assert "AA=BBB" in out
+    assert "CC='AA AA'" in out
+    assert "DD=aAXa" in out
+
+
+def test_env_log_unset_only(caplog: pytest.LogCaptureFixture) -> None:
+    """Unsetting env vars is logged as 'unset X Y'."""
+    runner = Runner(
+        command="echo",
+        params=[Param("x", default="1")],
+        env={"FOO": None, "BAR": None},
+    )
+    with (
+        patch("lite_runner.runner._collect_git_info", return_value=_FAKE_GIT_INFO),
+        caplog.at_level("INFO", logger="lite_runner"),
+    ):
+        runner.run(dry_run=True, no_interactive=True)
+    out = re.sub(r"\033\[[0-9;]*m", "", caplog.text)
+    assert "unset FOO BAR" in out
+
+
+def test_env_log_set_and_unset(caplog: pytest.LogCaptureFixture) -> None:
+    """Mixed set/unset env vars are joined with ' ; '."""
+    runner = Runner(
+        command="echo",
+        params=[Param("x", default="1")],
+        env={"AA": "1", "BB": None},
+    )
+    with (
+        patch("lite_runner.runner._collect_git_info", return_value=_FAKE_GIT_INFO),
+        caplog.at_level("INFO", logger="lite_runner"),
+    ):
+        runner.run(dry_run=True, no_interactive=True)
+    out = re.sub(r"\033\[[0-9;]*m", "", caplog.text)
+    assert "AA=1 ; unset BB" in out
+
+
+def test_env_log_empty_no_output(caplog: pytest.LogCaptureFixture) -> None:
+    """No 'Env:' line when env dict is empty."""
+    runner = Runner(
+        command="echo",
+        params=[Param("x", default="1")],
+    )
+    with (
+        patch("lite_runner.runner._collect_git_info", return_value=_FAKE_GIT_INFO),
+        caplog.at_level("INFO", logger="lite_runner"),
+    ):
+        runner.run(dry_run=True, no_interactive=True)
+    out = re.sub(r"\033\[[0-9;]*m", "", caplog.text)
+    assert "Env:" not in out
+
+
 # ---------------------------------------------------------------------------
 # run() kwargs and _merge_run_flags
 # ---------------------------------------------------------------------------

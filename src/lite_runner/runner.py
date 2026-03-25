@@ -581,6 +581,17 @@ class Runner:
         cmd = r.build_command(interpolated_params)
         for b in backend_list:
             b.update_config({"meta/full_command": shlex.join(cmd)})
+        set_env = {k: v for k, v in r.env.items() if v is not None}
+        unset_env = [k for k, v in r.env.items() if v is None]
+        if set_env or unset_env:
+            parts = []
+            if set_env:
+                parts.append(
+                    " ".join(f"{k}={shlex.quote(v)}" for k, v in set_env.items())
+                )
+            if unset_env:
+                parts.append("unset " + " ".join(unset_env))
+            logger.info("Env: %s", " ; ".join(parts))
         logger.info("Command:\n%s", shlex.join(cmd))
 
         # Execute
