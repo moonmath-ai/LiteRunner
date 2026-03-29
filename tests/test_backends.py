@@ -450,7 +450,7 @@ def test_json_backend_run_name_default() -> None:
         tags=[],
         config={"meta/output_dir": "/fake/output"},
     )
-    assert backend.run_name == "(local)"
+    assert backend.run_name == "local"
 
 
 def test_json_backend_full_lifecycle(tmp_path: Path) -> None:
