@@ -179,7 +179,7 @@ class JsonBackend:
         """Initialize with project metadata."""
         self.metadata = {
             "project": project,
-            "name": name or "(local)",
+            "name": name or "local",
             "group": group,
             "tags": list(tags),
         }
