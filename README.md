@@ -1,4 +1,4 @@
-# LiteRunner
+# lite\_\_runner
 
 [![Tests][tests-badge]][tests-link]
 [![codecov][codecov-badge]][codecov-link]

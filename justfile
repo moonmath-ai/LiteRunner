@@ -18,6 +18,10 @@ init: && prepare
   just deps-update
   git add --all
   [ -z "$(git status --porcelain)" ] || git commit -m "⬆️ Updated project dependencies"
+  uvx --from detect-secrets detect-secrets-hook $(git ls-files)
+  uvx --from detect-secrets detect-secrets scan > .secrets.baseline
+  git add .secrets.baseline
+  git commit -m "🔒 Add detect-secrets baseline"
 
 # Setup the project after cloning
 prepare:
