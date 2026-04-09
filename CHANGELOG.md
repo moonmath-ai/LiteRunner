@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-09
+
 ### Added
 
 - Support `-` on CLI to unset a param (`UNSET` sentinel) (#19)
@@ -20,4 +22,5 @@ All notable changes to this project will be documented in this file.
 - Initial release
 
 [0.1.1]: https://github.com/moonmath-ai/LiteRunner/releases/tag/v0.1.1
-[unreleased]: https://github.com/moonmath-ai/LiteRunner/compare/v0.1.1...HEAD
+[0.2.0]: https://github.com/moonmath-ai/LiteRunner/compare/v0.1.1...v0.2.0
+[unreleased]: https://github.com/moonmath-ai/LiteRunner/compare/v0.2.0...HEAD
