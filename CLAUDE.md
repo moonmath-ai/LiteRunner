@@ -49,7 +49,7 @@ Four core abstractions:
 
 `$output` is a placeholder interpolated to `~/lite_runs/<project>/<timestamp>_<run_name>/` at runtime.
 
-The `UNSET` sentinel marks params the user explicitly skipped (typed `-` at prompt) — these are omitted from the built command.
+The `UNSET` sentinel marks params the user explicitly skipped (typed `-` at the interactive prompt or passed `-` on the CLI) — these are omitted from the built command.
 
 ## Key Design Decisions
 
