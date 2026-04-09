@@ -61,7 +61,10 @@ RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ColorFormatter(logging.Formatter):
-    """Formatter that colors the ``name:`` prefix by log level."""
+    """Formatter that colors the ``name:`` prefix by log level.
+
+    Colors are only emitted when *stream* is a TTY.
+    """
 
     COLORS: ClassVar[dict[int, str]] = {
         logging.DEBUG: "\033[36m",  # cyan
@@ -72,11 +75,19 @@ class ColorFormatter(logging.Formatter):
     }
     RESET = "\033[0m"
 
+    def __init__(self, stream: TextIO | None = None) -> None:
+        """Create formatter, optionally bound to *stream* for TTY detection."""
+        super().__init__()
+        self._stream = stream
+
     @override
     def format(self, record: logging.LogRecord) -> str:
-        color = self.COLORS.get(record.levelno, self.RESET)
         formatted = super().format(record)
-        return f"{color}{record.name}:{self.RESET} {formatted}"
+        stream = self._stream or sys.stderr
+        if hasattr(stream, "isatty") and stream.isatty():
+            color = self.COLORS.get(record.levelno, self.RESET)
+            return f"{color}{record.name}:{self.RESET} {formatted}"
+        return f"{record.name}: {formatted}"
 
 
 def _ensure_logging() -> None:
@@ -84,7 +95,7 @@ def _ensure_logging() -> None:
     root = logging.getLogger(PACKAGE_NAME)
     if not any(h for h in root.handlers if not isinstance(h, logging.NullHandler)):
         handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(ColorFormatter())
+        handler.setFormatter(ColorFormatter(stream=sys.stderr))
         root.addHandler(handler)
         root.setLevel(logging.INFO)
 
