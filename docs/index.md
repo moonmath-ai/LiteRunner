@@ -1,3 +1,3 @@
-# lite\_\_runner
+# LiteRunner
 
 Runner for generative models with local and W&B tracking.
