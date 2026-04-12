@@ -1,4 +1,4 @@
-# Contributing to lite\_\_runner
+# Contributing to LiteRunner
 
 Thank you for your interest in contributing! There are many ways to help improve this project.
 
