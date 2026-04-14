@@ -78,12 +78,13 @@ Each `runner.run()` call:
 Param("name")                               # basic string param
 Param("seed", type="int", default=42)       # typed with default
 Param("mode", choices=["fast", "quality"])  # select from choices
+Param("verbose", type="bool")               # --verbose flag (store_true, always defaults to False)
 Param("image", type="path-image")           # file input, uploaded to W&B before run
 Param(
     "output-path",
     value="$output/video.mp4",              # fixed value, $output interpolated
     type="path-video",
-)                                           # uploaded to W&B after run
+)                                           # after the run, uploaded to W&B as a video
 Param(
     "input-image",
     type=["path-image", "float", "float"],  # multi-value flag
@@ -93,15 +94,32 @@ Param(
 
 <!-- blacken-docs:on -->
 
-- `value=` makes a param fixed (never prompted, not in CLI)
-- `default=` can be a callable (called at prompt time to compute the default)
+**Type** — controls parsing, casting, and file upload intent.
+All param values are logged to `run.config`.
+The `path-*` variants additionally upload the *file at that path* to W&B:
+
+| Type              | Parsed as | File upload |
+| ----------------- | --------- | ----------- |
+| `"str"` (default) | `str`     | —           |
+| `"int"`           | `int`     | —           |
+| `"float"`         | `float`   | —           |
+| `"bool"`          | flag      | —           |
+| `"path"`          | `str`     | —           |
+| `"path-image"`    | `str`     | as image    |
+| `"path-video"`    | `str`     | as video    |
+| `"path-artifact"` | `str`     | as artifact |
+| `"path-text"`     | `str`     | as text     |
+
+`"bool"` params are special: they generate a `--flag` (no value), always default
+to `False` (any other `default=` is ignored), and cannot appear in multi-value type lists.
+
+**Other fields:**
+
+- `value=` makes a param fixed (never prompted, not in CLI). Can be a callable (called at resolve time).
+- `default=` can be a callable (called at resolve time to compute the default)
+- `flag=` overrides the CLI flag name (default: `--<name with hyphens>`)
+- `prompt=False` skips interactive prompting (falls through to default). Requires a `default=`. The param still accepts CLI flags and is logged normally.
 - `$output` in value is replaced with the run's output directory
-- `type="path-*"` encodes upload intent:
-  - `"path-video"` — upload as video to W&B
-  - `"path-image"` — upload as image
-  - `"path-artifact"` — upload as artifact
-  - `"path-text"` — upload as text
-  - `"path"` — file path, no auto-upload
 - `log_when=` auto-inferred: `"before"` for inputs, `"after"` for `$output` paths
 - `type=[...]` gives per-element types for multi-value flags (nargs inferred from length)
 - Pass `-` on CLI to unset a param (omit it from the subprocess command).
@@ -121,10 +139,11 @@ Supports glob patterns and directory zipping:
 <!-- blacken-docs:off -->
 
 ```python
-Output("debug/**/*.png", log_as="image")      # upload each matched png
-Output("debug/", log_as="image")              # upload each file in directory
-Output("debug/", log_as="zip")                # zip entire directory, upload as artifact
-Output("$output/frames/*.jpg", log_as="zip")  # zip glob matches into archive
+Output("debug/**/*.png", log_as="image")                # upload each matched png
+Output("debug/", log_as="image")                        # upload each file in directory
+Output("debug/", log_as="zip")                          # zip entire directory, upload as artifact
+Output("$output/frames/*.jpg", log_as="zip")            # zip glob matches into archive
+Output("weights/", log_as="zip", name="model-weights")  # name= sets the W&B key (disambiguates zips)
 ```
 
 <!-- blacken-docs:on -->
@@ -136,9 +155,15 @@ Extract values from stdout:
 ```python
 Metric("loss", pattern=r"loss=([\d.]+)")
 Metric("status", pattern=r"status: (\w+)", type="str")
+Metric("steps_per_sec", pattern=r"steps/s=([\d.]+)", type="int")
+Metric(
+    "elapsed", pattern=r"elapsed: ([\d:.]+)", type="timedelta"
+)  # [[HH:]MM:]SS[.ddd] → seconds
 ```
 
-Last match wins. Stored in `wandb.run.summary`.
+Last match wins. Patterns are matched against both stdout and stderr. Stored in `wandb.run.summary`.
+
+Supported types: `"float"` (default), `"int"`, `"str"`, `"timedelta"`.
 
 ## Sweeps
 
@@ -168,14 +193,17 @@ runner.override(seed=42).with_metadata(tags=["baseline"]).run()
 
 ```python
 Runner(
-    command="python gen.py",            # str or list[str] (list avoids shell splitting)
+    command="python gen.py",  # str or list[str] (list avoids shell splitting)
     params=[...],
     outputs=[...],
     metrics=[...],
-    tags=["experiment-1"],              # W&B run tags
-    env={"CUDA_VISIBLE_DEVICES": "0"},  # extra env vars for subprocess
-    project="my-project",               # default: git repo name
-    run_group="my-sweep",               # W&B run group for sweeps (None = no grouping)
+    tags=["experiment-1"],    # W&B run tags
+    env={
+        "CUDA_VISIBLE_DEVICES": "0",
+        "NOISY_VAR": None,
+    },                        # set or unset env vars
+    project="my-project",     # default: git repo name
+    run_group="my-sweep",     # W&B run group for sweeps (None = no grouping)
 )
 ```
 
@@ -208,7 +236,7 @@ Methods:
 | `ask_user(no_interactive=)`                  | Prompt for missing values                     |
 | `run(...)`                                   | Auto-calls any unapplied steps, then executes |
 
-`run()` accepts kwargs `dry_run`, `min_free_space_gib`, `no_interactive`, `no_wandb`, `project`, `run_name` as alternatives to CLI flags.
+`run()` accepts kwargs `dry_run`, `min_free_space_gib`, `no_interactive`, `no_wandb`, `project`, `run_name` as alternatives to CLI flags. It returns a `RunResult` with fields: `output_dir`, `exit_code`, `duration`, `run_name`, `project`, `config`, `param_values`, `param_sources`.
 
 ## Built-in CLI flags
 
