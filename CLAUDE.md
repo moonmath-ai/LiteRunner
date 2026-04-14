@@ -37,7 +37,7 @@ Four core abstractions:
   Multi-value via `type=[...]`.
 - **`Output`** — Declares output files not tied to a Param (glob patterns, directories, zips).
   Processed after subprocess completes.
-- **`Metric`** — Regex pattern applied to stdout; last match wins.
+- **`Metric`** — Regex pattern applied to stdout and stderr combined; last match wins.
   Stored in `wandb.run.summary`.
 - **`Runner`** — Orchestrator with an immutable pipeline API.
   Each pipeline method returns a new Runner via `copy.deepcopy`:
