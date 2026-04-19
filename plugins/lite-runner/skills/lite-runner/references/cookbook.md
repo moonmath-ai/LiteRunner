@@ -144,27 +144,6 @@ Param("threshold", type="float", default=-3.0, prompt=False)
 The user can still pass `--threshold 2.5`. When not passed and not
 overridden, it falls through to the default without asking.
 
-## No W&B (local JSON only)
-
-Either pass `--no-wandb` on the CLI, or set `no_wandb=True` in `run()`:
-
-```python
-runner.run(no_wandb=True)
-```
-
-`JsonBackend` still writes `<output_dir>/run_info.json` with config,
-metrics, summary, and a list of logged files.
-
-## `--dry-run`
-
-Prints the command without executing it. Uses `DryRunBackend`, which
-logs every intended action to stderr. Useful for validating a sweep
-before committing to GPU hours:
-
-```bash
-./run.py --prompt "a cat" --dry-run
-```
-
 ## Reading back results programmatically
 
 `run()` returns a `RunResult`:
@@ -320,28 +299,9 @@ Two caveats:
   progress, but the final summary table is last, so the scraped
   number is the final score.
 
-## Common anti-patterns, expanded
+## Output-specific anti-patterns
 
-### ❌ Passing both `value=` and `default=`
-
-```python
-Param("x", value="$output/x.mp4", default="fallback.mp4")   # don't
-```
-
-`value=` makes it fixed (never prompted, never parsed from CLI).
-`default=` is only used when the param is promptable. Combining them
-is ambiguous; `value=` wins.
-
-### ❌ Regex without a capture group
-
-```python
-Metric("loss", pattern=r"loss=[\d.]+")                      # don't
-Metric("loss", pattern=r"loss=([\d.]+)")                    # do
-```
-
-`re.findall` returns the full match for patterns without groups and
-the capture for patterns with one group; your caster will then receive
-`"loss=0.123"` instead of `"0.123"` and explode.
+(The general gotchas — immutability, `value=` vs `default=`, regex capture groups, last-match semantics — live in `SKILL.md`. These two are unique to `Output` and worth the extra detail.)
 
 ### ❌ Using a directory with `log_as="image"`
 
@@ -352,32 +312,6 @@ Output("frames/", log_as="zip")     # zips the directory (usually what you want)
 
 For a bare directory, the runner logs a warning and uploads each file
 one-by-one; you usually want `"zip"`.
-
-### ❌ Relying on first-match semantics for metrics
-
-```python
-# Model prints: loss=1.0 ... loss=0.5 ... loss=0.1
-Metric("loss", pattern=r"loss=([\d.]+)")   # stored as 0.1 (last), NOT 1.0
-```
-
-If you want the first occurrence, scrape it yourself post-run rather
-than relying on `Metric`.
-
-### ❌ Mutating the base runner in a sweep loop
-
-```python
-base = runner.parse_cli()
-for seed in seeds:
-    base.param_values["seed"] = seed   # don't touch internals
-    base.run()
-```
-
-Use `override()`:
-
-```python
-for seed in seeds:
-    base.override(seed=seed).run(no_interactive=True)
-```
 
 ### ❌ Forgetting to interpolate `$output` in `copy_to`
 
