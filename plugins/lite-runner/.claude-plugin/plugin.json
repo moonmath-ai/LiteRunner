@@ -1,0 +1,21 @@
+{
+  "name": "lite-runner",
+  "version": "0.1.0",
+  "description": "Teaches Claude Code how to write correct run.py scripts with the lite-runner Python package: declaring Param/Output/Metric, wiring up a Runner, using $output interpolation, and driving sweeps via override().",
+  "author": {
+    "name": "MoonMath.ai",
+    "email": "tsvika@moonmath.ai",
+    "url": "https://github.com/moonmath-ai/LiteRunner"
+  },
+  "license": "MIT",
+  "keywords": [
+    "lite-runner",
+    "wandb",
+    "weights-and-biases",
+    "generative-models",
+    "experiment-tracking",
+    "cli",
+    "runner"
+  ],
+  "homepage": "https://github.com/moonmath-ai/LiteRunner"
+}

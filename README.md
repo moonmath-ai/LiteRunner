@@ -260,6 +260,19 @@ Methods:
 | Artifacts               | Log files, code snapshot, artifact-type outputs     |
 | Media                   | Videos and images from `path-*` type params/outputs |
 
+## Using with Claude Code
+
+This repo is also a [Claude Code](https://claude.com/claude-code) plugin
+marketplace. Install the `lite-runner` skill so Claude Code writes
+idiomatic `run.py` scripts and drives sweeps correctly:
+
+```text
+/plugin marketplace add moonmath-ai/LiteRunner
+/plugin install lite-runner@lite-runner-marketplace
+```
+
+See [`plugins/lite-runner/`](plugins/lite-runner/) for the plugin source.
+
 ## Contributing
 
 Interested in contributing?

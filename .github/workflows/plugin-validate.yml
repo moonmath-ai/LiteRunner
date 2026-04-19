@@ -1,0 +1,113 @@
+name: Validate plugin marketplace
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.claude-plugin/**'
+      - 'plugins/**'
+      - '.github/workflows/plugin-validate.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - '.claude-plugin/**'
+      - 'plugins/**'
+      - '.github/workflows/plugin-validate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate marketplace and plugins
+        shell: python
+        run: |
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(".")
+          errors: list[str] = []
+
+          # 1. marketplace.json must exist and parse.
+          mp_path = root / ".claude-plugin" / "marketplace.json"
+          if not mp_path.is_file():
+              errors.append(f"missing: {mp_path}")
+              print("\n".join(errors))
+              sys.exit(1)
+          try:
+              marketplace = json.loads(mp_path.read_text())
+          except json.JSONDecodeError as e:
+              errors.append(f"{mp_path}: invalid JSON: {e}")
+              print("\n".join(errors))
+              sys.exit(1)
+
+          # 2. Required top-level fields.
+          for key in ("name", "owner", "plugins"):
+              if key not in marketplace:
+                  errors.append(f"{mp_path}: missing required field '{key}'")
+          owner = marketplace.get("owner")
+          if isinstance(owner, dict) and "name" not in owner:
+              errors.append(f"{mp_path}: owner.name is required")
+          plugins = marketplace.get("plugins", [])
+          if not isinstance(plugins, list) or not plugins:
+              errors.append(f"{mp_path}: 'plugins' must be a non-empty array")
+
+          # 3. Each listed plugin must exist on disk with a plugin.json and
+          #    at least one skill.
+          for entry in plugins or []:
+              if not isinstance(entry, dict):
+                  errors.append(f"{mp_path}: plugin entry must be an object")
+                  continue
+              source = entry.get("source")
+              if not isinstance(source, str):
+                  errors.append(f"{mp_path}: plugin entry missing string 'source'")
+                  continue
+              plugin_dir = (root / source).resolve()
+              if not plugin_dir.is_dir():
+                  errors.append(f"plugin source not found on disk: {source}")
+                  continue
+              plugin_json = plugin_dir / ".claude-plugin" / "plugin.json"
+              if not plugin_json.is_file():
+                  errors.append(f"missing: {plugin_json.relative_to(root.resolve())}")
+                  continue
+              try:
+                  plugin_meta = json.loads(plugin_json.read_text())
+              except json.JSONDecodeError as e:
+                  errors.append(f"{plugin_json}: invalid JSON: {e}")
+                  continue
+              for key in ("name", "version", "description"):
+                  if key not in plugin_meta:
+                      errors.append(
+                          f"{plugin_json}: missing required field '{key}'"
+                      )
+              skills_dir = plugin_dir / "skills"
+              skills = (
+                  [p for p in skills_dir.iterdir() if p.is_dir()]
+                  if skills_dir.is_dir()
+                  else []
+              )
+              if not skills:
+                  errors.append(f"{source}: plugin has no skills/ directory")
+                  continue
+              for skill in skills:
+                  skill_md = skill / "SKILL.md"
+                  if not skill_md.is_file():
+                      errors.append(f"missing SKILL.md: {skill_md}")
+                      continue
+                  text = skill_md.read_text()
+                  if not text.startswith("---"):
+                      errors.append(f"{skill_md}: missing YAML frontmatter")
+
+          if errors:
+              print("Marketplace validation failed:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          print("Marketplace validation OK.")
