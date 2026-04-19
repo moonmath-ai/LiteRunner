@@ -20,7 +20,16 @@ description: Use when the user is working with the `lite-runner` Python package 
 
 ## When to reach for lite-runner
 
-Reach for it whenever you're about to write "a script that runs another script with some flags, scrapes a number from stdout, and saves the outputs somewhere." The flavor doesn't matter — the same `Runner` skeleton serves all of these:
+Reach for it whenever you'd otherwise hand-write `subprocess.run` plumbing around an experiment. **The command can be anything that runs as a subprocess** — a Python script, a compiled binary, `ffmpeg`, `cargo bench`, `make`, even a shell one-liner. lite-runner doesn't introspect, import, or assume anything about what you're calling; it just runs it with the flags you declared. **Everything else is automatic on every run, regardless of what you're running**:
+
+- **Git snapshot of the source tree** — `code/source.tar.gz` (tarball of HEAD, including submodules) plus `code/dirty.patch` (uncommitted changes). Every run is reproducible at the commit level, even if you didn't commit before launching.
+- **Full stdout/stderr capture** — `stdout.log`, `stderr.log`, and a combined `run.log` (with `[stderr]` line prefixes), all streamed to terminal *and* file in real time.
+- **Declarative file logging** — anything you mark `Param(type="path-image"/"path-video"/"path-artifact"/"path-text")` or list as an `Output(...)` is uploaded to W&B and (for inputs) copied into `<output_dir>/input/` for local reproducibility. SHA-256 hashes of output files are logged.
+- **Run metadata** — host, datetime, full command, git commit/branch/dirty, all `Param` values, exit code, duration, status.
+- **Regex-scraped metrics** from stdout/stderr into `wandb.run.summary`.
+- **`run_info.json`** — the whole config + metrics + summary + file list, written locally regardless of W&B.
+
+The same `Runner` skeleton serves all of these:
 
 - **ML training** (classical or deep) — hyperparams in, loss/accuracy regex out, final checkpoint as `path-artifact`.
 - **LLM evaluation harnesses** (lm-eval, HELM, custom) — task config in, score regex out, results JSON as artifact. See cookbook.
