@@ -2,8 +2,12 @@
 
 A [Claude Code](https://claude.com/claude-code) plugin that teaches
 Claude how to use the [`lite-runner`](https://github.com/moonmath-ai/LiteRunner)
-Python package — a runner for generative models with local and W&B
-tracking.
+Python package — a reproducible CLI experiment runner with local and
+W&B tracking. Originally built for generative-model inference, it
+fits any subprocess that takes flags and produces files: training,
+evaluation harnesses, hyperparameter sweeps, RL, benchmarks, data
+pipelines, distributed launchers (`torchrun` / `accelerate launch`),
+and scientific simulations.
 
 The plugin ships a single skill (`lite-runner`) that auto-triggers
 whenever Claude is asked to write or edit code that uses

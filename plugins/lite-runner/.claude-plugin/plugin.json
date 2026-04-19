@@ -1,7 +1,7 @@
 {
   "name": "lite-runner",
   "version": "0.1.0",
-  "description": "Teaches Claude Code how to write correct run.py scripts with the lite-runner Python package: declaring Param/Output/Metric, wiring up a Runner, using $output interpolation, and driving sweeps via override().",
+  "description": "Teaches Claude Code how to write correct run.py scripts with the lite-runner Python package — a reproducible CLI experiment runner for training, evaluation, benchmarking, sweeps, simulations, distributed launchers, and generative-model inference. Covers Param/Output/Metric declarations, $output interpolation, and sweeps via override().",
   "author": {
     "name": "MoonMath.ai",
     "email": "tsvika@moonmath.ai",

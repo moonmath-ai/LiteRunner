@@ -1,13 +1,13 @@
 ---
 name: lite-runner
-description: Use when the user is working with the `lite-runner` Python package (`from lite_runner import ...`), writing or editing a `run.py` that wraps a generative-model CLI with Weights & Biases tracking, declaring `Param`/`Output`/`Metric`/`Runner` objects, setting up a W&B-logged experiment runner, building a parameter sweep via `runner.override(...).run(...)`, interpolating `$output` into output paths, wiring `path-image`/`path-video`/`path-artifact` types for W&B uploads, or asking questions about lite-runner's pipeline API (`parse_cli`, `override`, `resolve_defaults`, `ask_user`, `with_metadata`, `run`). Trigger aggressively on any file that imports `lite_runner` or mentions "lite-runner"/"LiteRunner", on any `run.py` that looks like a model launcher, and whenever the user says things like "make a sweep", "add a W&B runner", or "wrap my generate.py".
+description: Use when the user is working with the `lite-runner` Python package (`from lite_runner import ...`) — a reproducible CLI experiment runner that wraps any subprocess (training, evaluation, benchmark, hyperparameter sweep, simulation, data pipeline, distributed launcher, generative-model inference) with Weights & Biases and local JSON tracking, git-snapshotted for reproducibility. Trigger when: writing or editing a `run.py` that wraps a model CLI, training script, eval harness, benchmark, RL agent, or simulation; declaring `Param` / `Output` / `Metric` / `Runner` objects; setting up a W&B-tracked experiment runner; building a hyperparameter or seed sweep via `runner.override(...).run(...)`; interpolating `$output` into output paths; wiring `path-image`/`path-video`/`path-artifact` types for W&B uploads; wrapping `torchrun` / `accelerate launch` / `mpirun` for distributed jobs; adding regression-tracked benchmarking (cargo bench, hyperfine) to CI; or asking questions about lite-runner's pipeline API (`parse_cli`, `override`, `resolve_defaults`, `ask_user`, `with_metadata`, `run`). Trigger aggressively on any file that imports `lite_runner` or mentions "lite-runner"/"LiteRunner", on any `run.py` that looks like an experiment launcher, and whenever the user says "make a sweep", "add a W&B runner", "wrap my train.py / generate.py / eval.py", "track this benchmark", or similar.
 ---
 
 # lite-runner
 
 ## Mental model
 
-`lite-runner` is a thin wrapper that turns a model's CLI (e.g. `python generate.py`) into a reproducible, tracked experiment. You write a small `run.py` that declares **what the model takes** (`Param`), **what it produces** (`Output`), and **what to scrape from its stdout** (`Metric`), then hand those to a `Runner`. At runtime the Runner parses CLI args, fills missing values via an interactive TUI (or fails in `--no-interactive` mode), creates `~/lite_runs/<project>/<timestamp>_<run_name>/`, inits a W&B run, snapshots the git repo, runs the subprocess while streaming stdout/stderr, scrapes metrics, uploads output files (videos, images, artifacts), and writes `run_info.json` locally. The `Runner` is immutable — pipeline methods (`parse_cli`, `override`, `resolve_defaults`, `ask_user`, `with_metadata`) each return a *new* `Runner` via deepcopy, which is what enables clean sweeps.
+`lite-runner` is a thin wrapper that turns any CLI command (e.g. `python train.py`, `python generate.py`, `torchrun ...`, `cargo bench`) into a reproducible, tracked experiment. You write a small `run.py` that declares **what the command takes** (`Param`), **what files it produces** (`Output`), and **what to scrape from its stdout** (`Metric`), then hand those to a `Runner`. At runtime the Runner parses CLI args, fills missing values via an interactive TUI (or fails in `--no-interactive` mode), creates `~/lite_runs/<project>/<timestamp>_<run_name>/`, inits a W&B run, snapshots the git repo, runs the subprocess while streaming stdout/stderr, scrapes metrics, uploads output files (videos, images, artifacts), and writes `run_info.json` locally. The `Runner` is immutable — pipeline methods (`parse_cli`, `override`, `resolve_defaults`, `ask_user`, `with_metadata`) each return a *new* `Runner` via deepcopy, which is what enables clean sweeps.
 
 **Core objects, in the order you use them:**
 
@@ -17,6 +17,23 @@ description: Use when the user is working with the `lite-runner` Python package 
 - `Metric(name, pattern, type=...)` — regex scraped from combined stdout+stderr; **last match wins**.
 - `UNSET` — sentinel marking a param the user explicitly skipped (via `-` on CLI or TUI); such params are **omitted** from the built command.
 - `RunResult` — dataclass returned by `run()`: `output_dir`, `exit_code`, `duration`, `run_name`, `project`, `config`, `param_values`, `param_sources`.
+
+## When to reach for lite-runner
+
+Reach for it whenever you're about to write "a script that runs another script with some flags, scrapes a number from stdout, and saves the outputs somewhere." The flavor doesn't matter — the same `Runner` skeleton serves all of these:
+
+- **ML training** (classical or deep) — hyperparams in, loss/accuracy regex out, final checkpoint as `path-artifact`.
+- **LLM evaluation harnesses** (lm-eval, HELM, custom) — task config in, score regex out, results JSON as artifact. See cookbook.
+- **Hyperparameter / seed sweeps** for any training script — `override()` loop + `run_group=` for W&B grouping.
+- **Reinforcement learning** — episode-return regex, rollout video as `path-video`, final policy as `path-artifact`.
+- **Benchmarking / perf regression** (cargo bench, hyperfine, wrk) — scrape numbers per commit; the git snapshot ties every number to a commit for free. See cookbook.
+- **Scientific / numerical simulations** — inputs as params, plots as `path-image`, raw arrays as `path-artifact`.
+- **Data pipelines / ETL** — dataset path in, row-count regex, output dataset as `path-artifact`.
+- **Distributed launchers** (`torchrun`, `accelerate launch`, `mpirun`) — wrap the launcher, not the inner script. See cookbook.
+- **Generative-model inference** — the original use case; see recipe 1 and `examples/run_ltx2.py` upstream.
+- **Local-only reproducibility snapshotter** — `--no-wandb` turns it into a "capture all inputs, outputs, and git state into a timestamped directory" tool, useful even without a W&B account.
+
+If all you need is a `subprocess.run` loop with no tracking and no missing-param prompts, lite-runner is overkill. Reach for it the moment you want W&B runs, artifact uploads, git snapshots, or TUI prompts for missing inputs.
 
 ## Setup
 

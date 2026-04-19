@@ -201,6 +201,125 @@ def test_my_runner(tmp_path):
 
 Pass `no_wandb=True` to avoid `wandb.init`.
 
+## Wrap a distributed launcher (`torchrun`, `accelerate launch`, `mpirun`)
+
+You wrap the **launcher**, not the inner training script. Pass
+`command=` as a list so the launcher's own flags don't get
+shlex-split:
+
+```python
+from lite_runner import Param, Runner
+
+runner = Runner(
+    command=[
+        "torchrun",
+        "--nproc_per_node=8",
+        "--rdzv_backend=c10d",
+        "train.py",
+    ],
+    params=[
+        Param("config", type="path", help="Training config YAML"),
+        Param("lr", type="float", default=1e-4),
+        Param("batch-size", type="int", default=32),
+        Param("epochs", type="int", default=10),
+        # final checkpoint, written by train.py into $output
+        Param("checkpoint", value="$output/model.pt", type="path-artifact"),
+    ],
+    env={
+        "NCCL_DEBUG": "INFO",
+        "CUDA_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7",
+        "TORCH_DISTRIBUTED_DEBUG": "DETAIL",
+    },
+    tags=["distributed", "8gpu"],
+)
+```
+
+Notes:
+
+- The list-form `command=` is essential — `shlex.split("torchrun --nproc_per_node=8 train.py")` would still work here, but for any launcher whose args contain `=`, spaces, or shell metachars, the list form is the only safe option.
+- `env={...}` flows to **all** worker processes spawned by `torchrun`.
+- The inner `train.py` still receives every `Param` as a CLI flag. Make sure your training script accepts `--lr`, `--batch-size`, `--checkpoint`, etc. (`argparse` is fine.)
+
+## Benchmark / perf regression tracking
+
+`lite-runner`'s git snapshot ties every metric to a commit, so you
+get commit-to-perf traceability in the W&B UI for free:
+
+```python
+from lite_runner import Metric, Output, Param, Runner
+
+runner = Runner(
+    command=["hyperfine", "--export-json", "results.json", "--warmup", "3"],
+    params=[
+        Param("target", help="Binary or shell command to benchmark"),
+    ],
+    metrics=[
+        # hyperfine prints lines like:
+        #   Time (mean ± σ):     123.4 ms ±   5.6 ms    [User: ...]
+        #   Range (min … max):   110.0 ms … 140.0 ms    10 runs
+        Metric("mean_ms",  pattern=r"Time \(mean ± σ\):\s+([\d.]+) ms"),
+        Metric("stddev_ms", pattern=r"Time \(mean ± σ\):\s+[\d.]+ ms ±\s+([\d.]+) ms"),
+        Metric("min_ms",   pattern=r"Range \(min … max\):\s+([\d.]+) ms"),
+    ],
+    outputs=[
+        Output("results.json", log_as="artifact",
+               copy_to="$output/results.json"),
+    ],
+    run_group="perf-regression",
+    tags=["benchmark"],
+)
+```
+
+Run this in CI on every commit. In the W&B UI, group by `run_group`
+and plot `mean_ms` against `git/commit` to spot regressions. Pair
+with `--no-interactive` so CI doesn't hang on missing params.
+
+## LLM evaluation harness (lm-eval / HELM / custom)
+
+Eval harnesses typically print a metrics table at the end and write
+a results JSON. Scrape the table; archive the JSON.
+
+```python
+from lite_runner import Metric, Output, Param, Runner
+
+runner = Runner(
+    command=["lm_eval"],
+    params=[
+        Param("model", default="hf"),
+        Param("model_args", help="e.g. pretrained=meta-llama/Llama-3-8B"),
+        Param("tasks", help="Comma-separated task list, e.g. mmlu,hellaswag"),
+        Param("batch-size", default="auto"),
+        Param("limit", type="int", default=None, prompt=False),
+        # lm_eval writes results to --output_path; point it at $output
+        Param("output_path", value="$output", type="path"),
+    ],
+    metrics=[
+        # lm-eval prints a markdown-ish table:
+        #   |hellaswag|acc       |↑  |0.7421|±  |0.0044|
+        # Adjust the regex to match your harness's exact format and
+        # add one Metric per task you care about.
+        Metric("hellaswag_acc",
+               pattern=r"\|hellaswag\s*\|acc\s*\|.*?\|\s*([\d.]+)\s*\|"),
+        Metric("mmlu_acc",
+               pattern=r"\|mmlu\s*\|acc\s*\|.*?\|\s*([\d.]+)\s*\|"),
+    ],
+    outputs=[
+        # Whole results dir as one zip artifact
+        Output("$output/results", log_as="zip", name="lm-eval-results"),
+    ],
+    tags=["llm-eval"],
+)
+```
+
+Two caveats:
+
+- `Metric` is flat — you get one named scalar per pattern. For a
+  multi-task eval, declare one `Metric` per task you care about, or
+  scrape the JSON post-run with your own glue.
+- `last match wins` works in your favor: lm-eval prints intermediate
+  progress, but the final summary table is last, so the scraped
+  number is the final score.
+
 ## Common anti-patterns, expanded
 
 ### ❌ Passing both `value=` and `default=`
