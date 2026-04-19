@@ -43,7 +43,26 @@ If all you need is a `subprocess.run` loop with no tracking and no missing-param
 uv add lite-runner           # or: pip install lite-runner
 ```
 
-It depends on `wandb`, `questionary`, `gitpython`, and `typing_extensions`. Log in to W&B once with `wandb login`, or pass `--no-wandb` / `no_wandb=True` to skip W&B entirely (JSON log still written). `run.py` scripts are commonly written as [PEP 723 single-file scripts](https://peps.python.org/pep-0723/) with an `#!/usr/bin/env -S uv run` shebang — see the first recipe below.
+It depends on `wandb`, `questionary`, `gitpython`, and `typing_extensions`. Log in to W&B once with `wandb login`, or use `--no-wandb` to skip it entirely (see Running modes below). `run.py` scripts are commonly written as [PEP 723 single-file scripts](https://peps.python.org/pep-0723/) with an `#!/usr/bin/env -S uv run` shebang — see the first recipe below.
+
+## Running modes
+
+Four built-in flags control how the run executes. Each has a CLI form and a `run(...)` kwarg form; **`run()` kwargs win over CLI flags and warn on conflict**.
+
+| Mode                    | CLI flag           | `run()` kwarg            | What it changes                                                                                              |
+| ----------------------- | ------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Interactive (default)   | —                  | —                        | Missing params prompted via questionary TUI. Use at a terminal during exploration.                           |
+| Non-interactive         | `--no-interactive` | `no_interactive=True`    | Missing required params **raise** instead of prompting. Use in sweeps and CI so the run never blocks.        |
+| No W&B                  | `--no-wandb`       | `no_wandb=True`          | Skips `wandb.init` entirely; `JsonBackend` still writes `<output_dir>/run_info.json`. Use offline or without a W&B account. |
+| Dry run                 | `--dry-run`        | `dry_run=True`           | Prints the command + intended actions and **skips the subprocess, the W&B run, and the JSON log**. Output dir is not created. Use to sanity-check a sweep before burning GPU hours. |
+
+Common combinations:
+
+- `--dry-run --no-interactive` — validate a sweep end-to-end with no prompts and no side effects.
+- `--no-wandb --no-interactive` — the standard "offline sweep" combo (sweeps shown in recipe 4 use exactly this via `no_interactive=True`).
+- `--no-wandb` alone (interactive) — local-only reproducibility snapshotter at a terminal.
+
+Other built-in flags exist for non-mode tweaks: `--project NAME`, `--run-name NAME`, `--min-free-space-gib N`. See `references/api.md` for the full list.
 
 ## The 80% patterns
 
