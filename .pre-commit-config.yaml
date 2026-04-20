@@ -70,6 +70,7 @@ repos:
       # File formatting
       - id: pretty-format-json
         exclude_types: [jupyter]
+        args: ["--no-sort-keys"]
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
@@ -132,6 +133,7 @@ repos:
           - mdformat-gfm
           - mdformat-footnote
           - mdformat-gfm-alerts
+          - mdformat-frontmatter
 
   # reStructuredText files
   - repo: https://github.com/PyCQA/doc8

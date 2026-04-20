@@ -1,0 +1,19 @@
+{
+  "name": "lite-runner-marketplace",
+  "owner": {
+    "name": "MoonMath.ai",
+    "email": "tsvika@moonmath.ai",
+    "url": "https://github.com/moonmath-ai/LiteRunner"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for the lite-runner Python package.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "lite-runner",
+      "source": "./plugins/lite-runner",
+      "description": "Skill for writing run.py scripts with lite-runner: a reproducible CLI experiment runner (training, eval, benchmark, sweep, simulation, distributed launcher) with W&B and local JSON tracking."
+    }
+  ]
+}
