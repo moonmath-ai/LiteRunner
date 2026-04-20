@@ -11,9 +11,7 @@ declared inline:
 ```python
 #!/usr/bin/env -S uv run
 # /// script
-# dependencies = [
-#     "lite-runner @ git+https://github.com/moonmath-ai/LiteRunner",
-# ]
+# dependencies = ["lite-runner"]
 # ///
 """Run config for my model."""
 
