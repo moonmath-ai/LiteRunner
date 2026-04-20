@@ -13,7 +13,7 @@
     {
       "name": "lite-runner",
       "source": "./plugins/lite-runner",
-      "description": "Skill for writing run.py scripts with lite-runner — a reproducible CLI experiment runner (training, eval, benchmark, sweep, simulation, distributed launcher) with W&B and local JSON tracking."
+      "description": "Skill for writing run.py scripts with lite-runner: a reproducible CLI experiment runner (training, eval, benchmark, sweep, simulation, distributed launcher) with W&B and local JSON tracking."
     }
   ]
 }
