@@ -40,7 +40,7 @@ The same `Runner` skeleton serves all of these:
 - **LLM evaluation harnesses** (lm-eval, HELM, custom) — task config in, score regex out, results JSON as artifact. See cookbook.
 - **Hyperparameter / seed sweeps** for any training script — `override()` loop + `run_group=` for W&B grouping.
 - **Reinforcement learning** — episode-return regex, rollout video as `path-video`, final policy as `path-artifact`.
-- **Benchmarking / perf regression** (cargo bench, hyperfine, wrk) — scrape numbers per commit; the git snapshot ties every number to a commit for free. See cookbook.
+- **Benchmarking / perf regression** (cargo bench, hyperfine, work) — scrape numbers per commit; the git snapshot ties every number to a commit for free. See cookbook.
 - **Scientific / numerical simulations** — inputs as params, plots as `path-image`, raw arrays as `path-artifact`.
 - **Data pipelines / ETL** — dataset path in, row-count regex, output dataset as `path-artifact`.
 - **Distributed launchers** (`torchrun`, `accelerate launch`, `mpirun`) — wrap the launcher, not the inner script. See cookbook.
@@ -63,12 +63,12 @@ It depends on `wandb`, `questionary`, `gitpython`, and `typing_extensions`. Log 
 
 Four built-in flags control how the run executes. Each has a CLI form and a `run(...)` kwarg form; **`run()` kwargs win over CLI flags and warn on conflict**.
 
-| Mode                    | CLI flag           | `run()` kwarg            | What it changes                                                                                              |
-| ----------------------- | ------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Interactive (default)   | —                  | —                        | Missing params prompted via questionary TUI. Use at a terminal during exploration.                           |
-| Non-interactive         | `--no-interactive` | `no_interactive=True`    | Missing required params **raise** instead of prompting. Use in sweeps and CI so the run never blocks.        |
-| No W&B                  | `--no-wandb`       | `no_wandb=True`          | Skips `wandb.init` entirely; `JsonBackend` still writes `<output_dir>/run_info.json`. Use offline or without a W&B account. |
-| Dry run                 | `--dry-run`        | `dry_run=True`           | Prints the command + intended actions and **skips the subprocess, the W&B run, and the JSON log**. Output dir is not created. Use to sanity-check a sweep before burning GPU hours. |
+| Mode                  | CLI flag           | `run()` kwarg         | What it changes                                                                                                                                                                     |
+| --------------------- | ------------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Interactive (default) | —                  | —                     | Missing params prompted via questionary TUI. Use at a terminal during exploration.                                                                                                  |
+| Non-interactive       | `--no-interactive` | `no_interactive=True` | Missing required params **raise** instead of prompting. Use in sweeps and CI so the run never blocks.                                                                               |
+| No W&B                | `--no-wandb`       | `no_wandb=True`       | Skips `wandb.init` entirely; `JsonBackend` still writes `<output_dir>/run_info.json`. Use offline or without a W&B account.                                                         |
+| Dry run               | `--dry-run`        | `dry_run=True`        | Prints the command + intended actions and **skips the subprocess, the W&B run, and the JSON log**. Output dir is not created. Use to sanity-check a sweep before burning GPU hours. |
 
 Common combinations:
 
@@ -138,8 +138,9 @@ from lite_runner import Output
 
 outputs = [
     # Single file: copy into $output before uploading as artifact.
-    Output("model_metadata.json", log_as="artifact",
-           copy_to="$output/model_metadata.json"),
+    Output(
+        "model_metadata.json", log_as="artifact", copy_to="$output/model_metadata.json"
+    ),
     # Glob: upload each matching png as an image.
     Output("debug/**/*.png", log_as="image"),
     # Directory zipped and uploaded as one artifact.
@@ -156,8 +157,11 @@ outputs = [
 ```python
 runner = Runner(
     command="python generate.py",
-    params=[Param("prompt"), Param("seed", type="int", default=0),
-            Param("lr", type="float", default=1e-4)],
+    params=[
+        Param("prompt"),
+        Param("seed", type="int", default=0),
+        Param("lr", type="float", default=1e-4),
+    ],
     run_group="lr-sweep",
 )
 for lr in [1e-3, 1e-4, 1e-5]:

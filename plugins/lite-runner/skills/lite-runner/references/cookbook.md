@@ -51,9 +51,9 @@ flag won't be passed at all).
 Runner(
     command="python generate.py",
     env={
-        "CUDA_VISIBLE_DEVICES": "0",   # set
-        "TORCH_COMPILE": "1",          # set
-        "NOISY_DEBUG_VAR": None,       # unset (even if inherited)
+        "CUDA_VISIBLE_DEVICES": "0",  # set
+        "TORCH_COMPILE": "1",  # set
+        "NOISY_DEBUG_VAR": None,  # unset (even if inherited)
     },
 )
 ```
@@ -67,7 +67,7 @@ Pipeline methods return fresh copies; you can parse CLI once and then
 fan out:
 
 ```python
-base = runner.parse_cli()              # parse sys.argv[1:]
+base = runner.parse_cli()  # parse sys.argv[1:]
 for seed in [42, 99, 123]:
     base.override(seed=seed).run(no_interactive=True)
 ```
@@ -81,10 +81,7 @@ with `seed` source-tagged `"override"`.
 
 ```python
 for variant, tags in [("baseline", ["v1"]), ("tuned", ["v2", "fast"])]:
-    (runner
-        .with_metadata(tags=tags)
-        .override(variant=variant)
-        .run(no_interactive=True))
+    (runner.with_metadata(tags=tags).override(variant=variant).run(no_interactive=True))
 ```
 
 Each call is independent; tags don't accumulate across iterations.
@@ -100,8 +97,8 @@ from lite_runner import Metric
 
 Metric(
     "stage1_time",
-    pattern=r"40/40 \[(\d\d:\d\d)<",   # e.g. "40/40 [03:12<00:00, ...]"
-    type="timedelta",                  # "03:12" → 192.0 seconds
+    pattern=r"40/40 \[(\d\d:\d\d)<",  # e.g. "40/40 [03:12<00:00, ...]"
+    type="timedelta",  # "03:12" → 192.0 seconds
 )
 ```
 
@@ -148,9 +145,9 @@ overridden, it falls through to the default without asking.
 
 ```python
 result = runner.run()
-print(result.output_dir)        # Path to this run's directory
-print(result.exit_code)         # 0 on success
-print(result.param_sources)     # {"prompt": "cli", "seed": "default", ...}
+print(result.output_dir)  # Path to this run's directory
+print(result.exit_code)  # 0 on success
+print(result.param_sources)  # {"prompt": "cli", "seed": "default", ...}
 ```
 
 `param_sources` values: `"cli"`, `"override"`, `"default"`, `"fixed"`,
@@ -164,11 +161,18 @@ and `lite_runner.runner._collect_git_info`. Minimal pattern:
 ```python
 from unittest.mock import patch
 
+
 def test_my_runner(tmp_path):
     with (
-        patch("lite_runner.runner._collect_git_info", return_value={
-            "repo": "test-repo", "commit": "abc", "branch": "main", "dirty": False,
-        }),
+        patch(
+            "lite_runner.runner._collect_git_info",
+            return_value={
+                "repo": "test-repo",
+                "commit": "abc",
+                "branch": "main",
+                "dirty": False,
+            },
+        ),
         patch("lite_runner.backends.create_repo_archive", return_value=None),
         patch("lite_runner.backends.create_repo_diff", return_value=None),
         patch("lite_runner.runner.RUNS_DIR", tmp_path / "lite_runs"),
@@ -234,13 +238,12 @@ runner = Runner(
         # hyperfine prints lines like:
         #   Time (mean ± σ):     123.4 ms ±   5.6 ms    [User: ...]
         #   Range (min … max):   110.0 ms … 140.0 ms    10 runs
-        Metric("mean_ms",  pattern=r"Time \(mean ± σ\):\s+([\d.]+) ms"),
+        Metric("mean_ms", pattern=r"Time \(mean ± σ\):\s+([\d.]+) ms"),
         Metric("stddev_ms", pattern=r"Time \(mean ± σ\):\s+[\d.]+ ms ±\s+([\d.]+) ms"),
-        Metric("min_ms",   pattern=r"Range \(min … max\):\s+([\d.]+) ms"),
+        Metric("min_ms", pattern=r"Range \(min … max\):\s+([\d.]+) ms"),
     ],
     outputs=[
-        Output("results.json", log_as="artifact",
-               copy_to="$output/results.json"),
+        Output("results.json", log_as="artifact", copy_to="$output/results.json"),
     ],
     run_group="perf-regression",
     tags=["benchmark"],
@@ -275,10 +278,10 @@ runner = Runner(
         #   |hellaswag|acc       |↑  |0.7421|±  |0.0044|
         # Adjust the regex to match your harness's exact format and
         # add one Metric per task you care about.
-        Metric("hellaswag_acc",
-               pattern=r"\|hellaswag\s*\|acc\s*\|.*?\|\s*([\d.]+)\s*\|"),
-        Metric("mmlu_acc",
-               pattern=r"\|mmlu\s*\|acc\s*\|.*?\|\s*([\d.]+)\s*\|"),
+        Metric(
+            "hellaswag_acc", pattern=r"\|hellaswag\s*\|acc\s*\|.*?\|\s*([\d.]+)\s*\|"
+        ),
+        Metric("mmlu_acc", pattern=r"\|mmlu\s*\|acc\s*\|.*?\|\s*([\d.]+)\s*\|"),
     ],
     outputs=[
         # Whole results dir as one zip artifact
@@ -304,8 +307,8 @@ Two caveats:
 ### ❌ Using a directory with `log_as="image"`
 
 ```python
-Output("frames/", log_as="image")   # warns, uploads every file individually
-Output("frames/", log_as="zip")     # zips the directory (usually what you want)
+Output("frames/", log_as="image")  # warns, uploads every file individually
+Output("frames/", log_as="zip")  # zips the directory (usually what you want)
 ```
 
 For a bare directory, the runner logs a warning and uploads each file
@@ -314,7 +317,7 @@ one-by-one; you usually want `"zip"`.
 ### ❌ Forgetting to interpolate `$output` in `copy_to`
 
 ```python
-Output("foo.json", log_as="artifact", copy_to="foo.json")          # writes to cwd
+Output("foo.json", log_as="artifact", copy_to="foo.json")  # writes to cwd
 Output("foo.json", log_as="artifact", copy_to="$output/foo.json")  # writes to run dir
 ```
 
