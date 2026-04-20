@@ -6,18 +6,18 @@ doesn't appear in `SKILL.md`.
 
 ## Public re-exports (`lite_runner.__all__`)
 
-| Name           | Kind     | What it is                                                  |
-| -------------- | -------- | ----------------------------------------------------------- |
-| `Runner`       | class    | Main orchestrator.                                          |
-| `Param`        | dataclass| Declaration of one CLI parameter / fixed value.             |
-| `Output`       | dataclass| Declaration of an extra output file (uncontrolled path).    |
-| `Metric`       | dataclass| Regex scraped from stdout+stderr into `wandb.run.summary`.  |
-| `RunResult`    | dataclass| Frozen result returned by `Runner.run()`.                   |
-| `ParamType`    | `Literal`| The string literal type for single `Param.type` values.     |
-| `UNSET`        | sentinel | Marker meaning "param explicitly skipped — omit from cmd".  |
-| `LogBackend`   | Protocol | Structural type for custom backends.                        |
-| `WandbBackend` | class    | Default Weights & Biases backend.                           |
-| `JsonBackend`  | class    | Always-on local `run_info.json` backend.                    |
+| Name           | Kind      | What it is                                                 |
+| -------------- | --------- | ---------------------------------------------------------- |
+| `Runner`       | class     | Main orchestrator.                                         |
+| `Param`        | dataclass | Declaration of one CLI parameter / fixed value.            |
+| `Output`       | dataclass | Declaration of an extra output file (uncontrolled path).   |
+| `Metric`       | dataclass | Regex scraped from stdout+stderr into `wandb.run.summary`. |
+| `RunResult`    | dataclass | Frozen result returned by `Runner.run()`.                  |
+| `ParamType`    | `Literal` | The string literal type for single `Param.type` values.    |
+| `UNSET`        | sentinel  | Marker meaning "param explicitly skipped — omit from cmd". |
+| `LogBackend`   | Protocol  | Structural type for custom backends.                       |
+| `WandbBackend` | class     | Default Weights & Biases backend.                          |
+| `JsonBackend`  | class     | Always-on local `run_info.json` backend.                   |
 
 ## `Param`
 
@@ -74,17 +74,17 @@ class Param:
 
 ### `ParamType` values
 
-| Value             | Parsed as | File uploaded to W&B |
-| ----------------- | --------- | -------------------- |
-| `"str"` (default) | `str`     | —                    |
-| `"int"`           | `int`     | —                    |
-| `"float"`         | `float`   | —                    |
-| `"bool"`          | flag      | —                    |
-| `"path"`          | `str`     | —                    |
-| `"path-image"`    | `str`     | as `wandb.Image`     |
+| Value             | Parsed as | File uploaded to W&B                                                |
+| ----------------- | --------- | ------------------------------------------------------------------- |
+| `"str"` (default) | `str`     | —                                                                   |
+| `"int"`           | `int`     | —                                                                   |
+| `"float"`         | `float`   | —                                                                   |
+| `"bool"`          | flag      | —                                                                   |
+| `"path"`          | `str`     | —                                                                   |
+| `"path-image"`    | `str`     | as `wandb.Image`                                                    |
 | `"path-video"`    | `str`     | as `wandb.Video` (format inferred from extension: gif/mp4/webm/ogg) |
-| `"path-artifact"` | `str`     | as W&B artifact      |
-| `"path-text"`     | `str`     | as `wandb.Html("<pre>...</pre>")` of the file's text |
+| `"path-artifact"` | `str`     | as W&B artifact                                                     |
+| `"path-text"`     | `str`     | as `wandb.Html("<pre>...</pre>")` of the file's text                |
 
 `"bool"` params generate `--flag` (no value), always default to `False`,
 and are not added to the command when `False`.
@@ -132,10 +132,11 @@ class Metric:
 - `pattern` — Regex with **exactly one capture group**, matched with
   `re.findall` against the concatenation `stdout_text + "\n" + stderr_text`.
   **Last match wins.**
+
 - `type` — `"float"` (default), `"int"`, `"str"`, or `"timedelta"`.
   `"timedelta"` parses `[[HH:]MM:]SS[.ddd]` into total seconds (float):
 
-  ```python
+  ```
   "1:02:03.5" → 3723.5
   "05:30"     → 330.0
   "42"        → 42.0
@@ -169,46 +170,46 @@ class Runner:
 
 ### Pipeline methods (all return a new Runner)
 
-| Method                                                    | Behavior |
-| --------------------------------------------------------- | -------- |
-| `copy()`                                                  | `copy.deepcopy(self)`. |
-| `parse_cli(argv=None)`                                    | Parses CLI args (default `sys.argv[1:]`). Sets `param_sources[name] = "cli"`, `cli_parsed = True`. Does not overwrite existing `"override"` sources. |
-| `override(**kwargs)`                                      | Sets param values by name (hyphens OR underscores). Sets `param_sources = "override"`. Unknown names raise `ValueError`. |
-| `with_metadata(project=, run_group=, tags=)`              | Replaces the corresponding fields if non-None. |
-| `resolve_defaults()`                                      | Fills fixed (`value=`) and default (`default=`) values. Doesn't overwrite cli/override. Sets `defaults_resolved = True`. Bool → `False`. Callable `default`/`value` called here. |
-| `ask_user(no_interactive=None)`                           | Auto-calls `resolve_defaults()` if needed. Prompts for every promptable param (not fixed, `prompt=True`, not set via cli/override). In non-interactive mode with missing params: raises `ValueError` (which `run()` turns into `SystemExit(2)`). Sets `filled = True`. |
+| Method                                       | Behavior                                                                                                                                                                                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `copy()`                                     | `copy.deepcopy(self)`.                                                                                                                                                                                                                                                 |
+| `parse_cli(argv=None)`                       | Parses CLI args (default `sys.argv[1:]`). Sets `param_sources[name] = "cli"`, `cli_parsed = True`. Does not overwrite existing `"override"` sources.                                                                                                                   |
+| `override(**kwargs)`                         | Sets param values by name (hyphens OR underscores). Sets `param_sources = "override"`. Unknown names raise `ValueError`.                                                                                                                                               |
+| `with_metadata(project=, run_group=, tags=)` | Replaces the corresponding fields if non-None.                                                                                                                                                                                                                         |
+| `resolve_defaults()`                         | Fills fixed (`value=`) and default (`default=`) values. Doesn't overwrite cli/override. Sets `defaults_resolved = True`. Bool → `False`. Callable `default`/`value` called here.                                                                                       |
+| `ask_user(no_interactive=None)`              | Auto-calls `resolve_defaults()` if needed. Prompts for every promptable param (not fixed, `prompt=True`, not set via cli/override). In non-interactive mode with missing params: raises `ValueError` (which `run()` turns into `SystemExit(2)`). Sets `filled = True`. |
 
 ### `run(*, dry_run=None, min_free_space_gib=None, no_interactive=None, no_wandb=None, project=None, run_name=None) -> RunResult`
 
 Auto-calls any unapplied pipeline steps, then executes:
 
 1. Parses CLI if `cli_parsed` is False.
-2. Merges `run()` kwargs over CLI flags (warns on conflict).
-3. Checks disk free-space if `min_free_space_gib` is set.
-4. Resolves defaults, then prompts (or errors if `no_interactive`).
-5. Resolves `project` via kwarg → CLI flag → `self.project` → git repo
+1. Merges `run()` kwargs over CLI flags (warns on conflict).
+1. Checks disk free-space if `min_free_space_gib` is set.
+1. Resolves defaults, then prompts (or errors if `no_interactive`).
+1. Resolves `project` via kwarg → CLI flag → `self.project` → git repo
    name. If still `None`: `ValueError`.
-6. Collects `meta/*`, `git/*`, `param/*` into `config`.
-7. Inits backends: `DryRunBackend` if `--dry-run`; else `WandbBackend`
+1. Collects `meta/*`, `git/*`, `param/*` into `config`.
+1. Inits backends: `DryRunBackend` if `--dry-run`; else `WandbBackend`
    (unless `--no-wandb`) + `JsonBackend` (always).
-8. Creates output dir `~/lite_runs/<project>/<date>_[<group>_]<name>/`.
-9. Snapshots git: `code/source.tar.gz` (archive of HEAD) and
+1. Creates output dir `~/lite_runs/<project>/<date>_[<group>_]<name>/`.
+1. Snapshots git: `code/source.tar.gz` (archive of HEAD) and
    `code/dirty.patch` (diff HEAD vs working tree). Submodules are
    archived into the same tar.
-10. Interpolates `$output` in param values.
-11. Logs input files (`log_when == "before"`) and copies them to
-    `<output_dir>/input/` for local reproducibility.
-12. Builds command via `build_command()`.
-13. Runs subprocess, streaming stdout to `stdout.log`, stderr to
-    `stderr.log`, combined to `run.log` (stderr lines prefixed
-    `[stderr] `). `Ctrl-C` sends `SIGTERM`, then `SIGKILL` after 10s.
-14. Collects metrics, post-run files (`log_when == "after"` params,
-    `Output` declarations, run logs), logs them with per-step
-    try/except so one failure doesn't skip others.
-15. Sends to each backend with per-backend try/except, then `finish()`
-    each backend individually.
-16. Returns `RunResult`. `sys.exit(1)` if the subprocess failed or was
-    aborted.
+1. Interpolates `$output` in param values.
+1. Logs input files (`log_when == "before"`) and copies them to
+   `<output_dir>/input/` for local reproducibility.
+1. Builds command via `build_command()`.
+1. Runs subprocess, streaming stdout to `stdout.log`, stderr to
+   `stderr.log`, combined to `run.log` (stderr lines prefixed
+   `[stderr] `). `Ctrl-C` sends `SIGTERM`, then `SIGKILL` after 10s.
+1. Collects metrics, post-run files (`log_when == "after"` params,
+   `Output` declarations, run logs), logs them with per-step
+   try/except so one failure doesn't skip others.
+1. Sends to each backend with per-backend try/except, then `finish()`
+   each backend individually.
+1. Returns `RunResult`. `sys.exit(1)` if the subprocess failed or was
+   aborted.
 
 Every post-run step is individually try-excepted so W&B always finishes.
 
@@ -224,19 +225,21 @@ class RunResult:
     project: str
     config: dict[str, object]
     param_values: dict[str, object]
-    param_sources: dict[str, str]  # values: "cli", "override", "default", "fixed", "prompt"
+    param_sources: dict[
+        str, str
+    ]  # values: "cli", "override", "default", "fixed", "prompt"
 ```
 
 ## Built-in CLI flags (always present)
 
-| Flag                     | Type   | Meaning                                          |
-| ------------------------ | ------ | ------------------------------------------------ |
-| `--dry-run`              | flag   | Print command, use `DryRunBackend`, exit.        |
-| `--min-free-space-gib N` | float  | Abort if runs dir has less than N GiB free.      |
-| `--no-interactive`       | flag   | Fail on missing params instead of prompting.     |
-| `--no-wandb`             | flag   | Skip W&B entirely; `JsonBackend` still runs.     |
-| `--project NAME`         | str    | Override project name.                           |
-| `--run-name NAME`        | str    | Override run name.                               |
+| Flag                     | Type  | Meaning                                      |
+| ------------------------ | ----- | -------------------------------------------- |
+| `--dry-run`              | flag  | Print command, use `DryRunBackend`, exit.    |
+| `--min-free-space-gib N` | float | Abort if runs dir has less than N GiB free.  |
+| `--no-interactive`       | flag  | Fail on missing params instead of prompting. |
+| `--no-wandb`             | flag  | Skip W&B entirely; `JsonBackend` still runs. |
+| `--project NAME`         | str   | Override project name.                       |
+| `--run-name NAME`        | str   | Override run name.                           |
 
 ## `LogBackend` protocol
 
@@ -261,15 +264,15 @@ editing `runner.py`; implement it by subclassing or monkeypatching
 
 ## What gets logged to W&B
 
-| Location                 | Content                                             |
-| ------------------------ | --------------------------------------------------- |
-| `run.config["param/*"]`  | All param values (UNSET → `"<unset>"`).             |
-| `run.config["git/*"]`    | `repo`, `commit`, `branch`, `dirty`.                |
-| `run.config["meta/*"]`   | `hostname`, `datetime`, `command`, `output_dir`, `full_command`. |
-| `run.config["wandb/url"]`| W&B run URL (or `"(no wandb)"`).                    |
-| `run.summary`            | `exit_code`, `duration_seconds`, `status`, all Metric values. |
-| Artifacts                | `code` (tar.gz of HEAD), `code-diff` (dirty patch, local-only), `path-artifact` params, `Output(log_as="artifact")`, `Output(log_as="zip")`, run logs as text. |
-| Media                    | Videos (`path-video`, `Output(log_as="video")`) and images (`path-image`, `Output(log_as="image")`). |
+| Location                  | Content                                                                                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run.config["param/*"]`   | All param values (UNSET → `"<unset>"`).                                                                                                                        |
+| `run.config["git/*"]`     | `repo`, `commit`, `branch`, `dirty`.                                                                                                                           |
+| `run.config["meta/*"]`    | `hostname`, `datetime`, `command`, `output_dir`, `full_command`.                                                                                               |
+| `run.config["wandb/url"]` | W&B run URL (or `"(no wandb)"`).                                                                                                                               |
+| `run.summary`             | `exit_code`, `duration_seconds`, `status`, all Metric values.                                                                                                  |
+| Artifacts                 | `code` (tar.gz of HEAD), `code-diff` (dirty patch, local-only), `path-artifact` params, `Output(log_as="artifact")`, `Output(log_as="zip")`, run logs as text. |
+| Media                     | Videos (`path-video`, `Output(log_as="video")`) and images (`path-image`, `Output(log_as="image")`).                                                           |
 
 ## Layout of `~/lite_runs/<project>/<date>_<run_name>/`
 
