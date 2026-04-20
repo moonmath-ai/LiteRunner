@@ -133,6 +133,7 @@ repos:
           - mdformat-gfm
           - mdformat-footnote
           - mdformat-gfm-alerts
+          - mdformat-frontmatter
 
   # reStructuredText files
   - repo: https://github.com/PyCQA/doc8
