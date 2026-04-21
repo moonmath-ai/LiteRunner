@@ -73,6 +73,8 @@ Common combinations:
 - `--no-wandb --no-interactive` — the standard "offline sweep" combo (sweeps shown in recipe 4 use exactly this via `no_interactive=True`).
 - `--no-wandb` alone (interactive) — local-only reproducibility snapshotter at a terminal.
 
+For long runs, launch detached with `nohup ./run.py --no-interactive &> /tmp/run.log &` — lite-runner streams stdout/stderr live (per-chunk flushed) to `<output_dir>/{stdout,stderr,run}.log`, so `tail -f` works during the run (set `PYTHONUNBUFFERED=1` in `env=` if the child block-buffers).
+
 Other built-in flags exist for non-mode tweaks: `--project NAME`, `--run-name NAME`, `--min-free-space-gib N`. See `references/api.md` for the full list.
 
 ## The 80% patterns
