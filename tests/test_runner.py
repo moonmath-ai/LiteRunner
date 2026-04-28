@@ -1133,6 +1133,7 @@ def test_full_run_no_wandb(tmp_path: Path) -> None:
         metrics=[Metric("val", pattern=r"x=([\d.]+)")],
         tags=["v1"],
         run_group="test-group",
+        env={"MY_FLAG": "1", "DROP_ME": None},
     )
 
     with (
@@ -1159,6 +1160,7 @@ def test_full_run_no_wandb(tmp_path: Path) -> None:
     # Check config
     assert run_info["config"]["git/repo"] == "test-repo"
     assert run_info["config"]["meta/output_dir"] == str(output_dir)
+    assert run_info["config"]["meta/env"] == {"MY_FLAG": "1", "DROP_ME": None}
 
     # Check metrics extracted
     assert run_info["metrics"]["val"] == 42.0

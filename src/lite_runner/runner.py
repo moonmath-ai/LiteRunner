@@ -495,6 +495,7 @@ class Runner:
         config["meta/hostname"] = os.uname().nodename
         config["meta/datetime"] = timestamp.isoformat()
         config["meta/command"] = shlex.join(r.command)
+        config["meta/env"] = dict(r.env)
 
         # Init WandbBackend first (needs to happen early to get run_name)
         backend_classes: list[type[WandbBackend | JsonBackend | DryRunBackend]] = []
