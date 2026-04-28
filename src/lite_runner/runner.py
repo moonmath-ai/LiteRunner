@@ -177,6 +177,8 @@ class Runner:
         metrics: Regex patterns to extract from stdout via :class:`Metric`.
         tags: run tags.
         env: Extra environment variables for the subprocess.
+        secret_env: Like ``env``, but values are redacted as ``***`` in logs
+            and recorded config (subprocess still receives the real value).
         project: project name (default: git repo name).
         run_group: run group for sweeps.
     """
@@ -186,6 +188,7 @@ class Runner:
     outputs: list[Output] = field(default_factory=list)
     metrics: list[Metric] = field(default_factory=list)
     env: dict[str, str | None] = field(default_factory=dict)
+    secret_env: dict[str, str] = field(default_factory=dict)
     project: str | None = None
     run_group: str | None = None
     tags: list[str] = field(default_factory=list)
@@ -500,7 +503,7 @@ class Runner:
         config["meta/cwd"] = os.getcwd()  # noqa: PTH109
         config["meta/datetime"] = timestamp.isoformat()
         config["meta/command"] = shlex.join(r.command)
-        config["meta/env"] = dict(r.env)
+        config["meta/env"] = {**dict(r.env), **dict.fromkeys(r.secret_env, "***")}
 
         # Init WandbBackend first (needs to happen early to get run_name)
         backend_classes: list[type[WandbBackend | JsonBackend | DryRunBackend]] = []
@@ -599,6 +602,7 @@ class Runner:
         for b in backend_list:
             b.update_config({"meta/full_command": shlex.join(cmd)})
         set_env = {k: v for k, v in r.env.items() if v is not None}
+        set_env.update(dict.fromkeys(r.secret_env, "***"))
         unset_env = [k for k, v in r.env.items() if v is None]
         if set_env or unset_env:
             parts = []
@@ -837,6 +841,7 @@ class Runner:
                     run_env.pop(k, None)
                 else:
                     run_env[k] = v
+            run_env.update(self.secret_env)
             if "COLUMNS" not in run_env:
                 with suppress(OSError):
                     run_env["COLUMNS"] = str(os.get_terminal_size().columns)
