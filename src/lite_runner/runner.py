@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import copy
 import datetime
+import getpass
 import hashlib
 import importlib.metadata
 import logging
@@ -489,10 +490,14 @@ class Runner:
         config: dict[str, object] = {}
         for k, v in r.param_values.items():
             config[f"param/{k}"] = "<unset>" if _contains_unset(v) else v
+        for k, v in r.param_sources.items():
+            config[f"param_source/{k}"] = v
         for k, v in git_info.items():
             config[f"git/{k}"] = v
         timestamp = datetime.datetime.now(tz=datetime.timezone.utc)
         config["meta/hostname"] = os.uname().nodename
+        config["meta/user"] = getpass.getuser()
+        config["meta/cwd"] = os.getcwd()  # noqa: PTH109
         config["meta/datetime"] = timestamp.isoformat()
         config["meta/command"] = shlex.join(r.command)
         config["meta/env"] = dict(r.env)

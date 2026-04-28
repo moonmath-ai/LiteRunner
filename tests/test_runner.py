@@ -1161,6 +1161,8 @@ def test_full_run_no_wandb(tmp_path: Path) -> None:
     assert run_info["config"]["git/repo"] == "test-repo"
     assert run_info["config"]["meta/output_dir"] == str(output_dir)
     assert run_info["config"]["meta/env"] == {"MY_FLAG": "1", "DROP_ME": None}
+    assert run_info["config"]["meta/cwd"]
+    assert run_info["config"]["meta/user"]
 
     # Check metrics extracted
     assert run_info["metrics"]["val"] == 42.0
