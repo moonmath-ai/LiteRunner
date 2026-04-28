@@ -178,22 +178,26 @@ from lite_runner import Command
 runner = Runner(
     command="python train.py",
     pre_commands=[
-        Command("build", "make"),                  # build before training
-        Command("pip-list", "uv pip list"),        # snapshot the env
+        Command("uv-sync", "uv sync -v"),                        # sync env before run
+        Command("ls-out", "ls -la $output", env={"LC_ALL": "C"}),  # $output is interpolated
     ],
     post_commands=[
-        Command("disk-usage", "du -sh ./output"),  # capture output size
+        Command("uv-pip-list", "uv pip list"),                   # snapshot resolved versions
     ],
 )
 ```
 
 <!-- blacken-docs:on -->
 
-Each command's stdout/stderr is streamed to the terminal and saved to
-`<phase>_<name>.log` (combined), `<phase>_<name>_stdout.log`, and
-`<phase>_<name>_stderr.log` in the run's output directory; the log files are
-also uploaded to W&B.
-
+- Each command's stdout/stderr is streamed to the terminal and saved to
+  `<phase>_<name>.log` (combined), `<phase>_<name>_stdout.log`, and
+  `<phase>_<name>_stderr.log` in the run's output directory; the log files are
+  also uploaded to W&B.
+- Commands run sequentially in the order they appear in the list.
+- `$output` is interpolated in both command tokens and `env` values.
+- Each `Command` has its own optional `env` (None to unset). Aux commands do
+  **not** inherit `Runner.env` or `Runner.secret_env` — they get a clean env
+  built from `os.environ` plus per-command overrides.
 - A non-zero exit from a **pre-command** aborts the run (main and post are skipped).
 - A non-zero exit from a **post-command** is logged but does not change the run outcome.
 

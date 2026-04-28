@@ -1311,6 +1311,89 @@ def test_post_command_skipped_when_pre_fails(tmp_path: Path) -> None:
     assert not (output_dir / "post_never_stdout.log").exists()
 
 
+def test_aux_command_interpolates_output(tmp_path: Path) -> None:
+    """$output in a Command's tokens and env values is interpolated to output_dir."""
+    output_dir = _run_with_aux(
+        tmp_path,
+        pre_commands=[
+            Command(
+                name="show",
+                command=(
+                    f'{sys.executable} -c "'
+                    "import os; print('ARG=' + __import__('sys').argv[1]); "
+                    "print('ENV=' + os.environ['MYDIR'])\" $output"
+                ),
+                env={"MYDIR": "$output"},
+            ),
+        ],
+    )
+    log = (output_dir / "pre_show_stdout.log").read_text()
+    assert f"ARG={output_dir}" in log
+    assert f"ENV={output_dir}" in log
+
+
+def test_aux_command_uses_own_env_not_runner_env(tmp_path: Path) -> None:
+    """Aux commands do NOT inherit Runner.env / secret_env."""
+    main_cmd = (
+        f'{sys.executable} -c "import os, sys; '
+        "print('MAIN_FLAG=' + os.environ.get('MAIN_FLAG', 'unset'))\""
+    )
+    runner = Runner(
+        command=main_cmd,
+        params=[],
+        env={"MAIN_FLAG": "from-runner"},
+        secret_env={"MAIN_TOKEN": "secret"},
+        pre_commands=[
+            Command(
+                name="check",
+                command=f'{sys.executable} -c "'
+                "import os; "
+                "print('PRE_FLAG=' + os.environ.get('MAIN_FLAG', 'unset')); "
+                "print('PRE_TOKEN=' + os.environ.get('MAIN_TOKEN', 'unset')); "
+                "print('PRE_OWN=' + os.environ.get('PRE_OWN', 'unset'))\"",
+                env={"PRE_OWN": "from-cmd"},
+            ),
+        ],
+    )
+    with (
+        patch("lite_runner.runner._collect_git_info", return_value=_FAKE_GIT_INFO),
+        patch("lite_runner.backends.create_repo_archive", return_value=None),
+        patch("lite_runner.backends.create_repo_diff", return_value=None),
+        patch("lite_runner.runner.RUNS_DIR", tmp_path / "lite_runs"),
+        pytest.MonkeyPatch.context() as mp,
+    ):
+        mp.setattr(sys, "exit", lambda _code=0: None)
+        runner.run(no_wandb=True, no_interactive=True)
+
+    output_dir = next((tmp_path / "lite_runs" / "test-repo").iterdir())
+    pre_log = (output_dir / "pre_check_stdout.log").read_text()
+    main_log = (output_dir / "stdout.log").read_text()
+    # Pre command sees its own env but NOT main's env or secret_env
+    assert "PRE_OWN=from-cmd" in pre_log
+    assert "PRE_FLAG=unset" in pre_log
+    assert "PRE_TOKEN=unset" in pre_log
+    # Main command still sees Runner.env
+    assert "MAIN_FLAG=from-runner" in main_log
+
+
+def test_aux_commands_run_in_list_order(tmp_path: Path) -> None:
+    """pre_commands and post_commands execute in the order they were declared."""
+    output_dir = _run_with_aux(
+        tmp_path,
+        pre_commands=[
+            Command(name="first", command=f"{sys.executable} -c \"print('1')\""),
+            Command(name="second", command=f"{sys.executable} -c \"print('2')\""),
+            Command(name="third", command=f"{sys.executable} -c \"print('3')\""),
+        ],
+    )
+    # Files are created sequentially; check by mtime
+    times = [
+        (output_dir / f"pre_{n}.log").stat().st_mtime_ns
+        for n in ("first", "second", "third")
+    ]
+    assert times == sorted(times)
+
+
 def test_command_name_validation() -> None:
     with pytest.raises(ValueError, match="must be non-empty"):
         Command(name="", command="echo hi")

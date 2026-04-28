@@ -604,16 +604,17 @@ class Runner:
             except Exception as e:  # noqa: BLE001, PERF203
                 logger.warning("%s pre-run logging failed: %s", type(b).__name__, e)
 
-        # Pre-commands: abort the run if any fails (non-zero exit)
-        run_env = r._build_run_env()  # noqa: SLF001
+        # Pre-commands: abort the run if any fails (non-zero exit).
+        # Run in declared list order; aux commands use their own env (do NOT
+        # inherit Runner.env / secret_env).
         pre_failed = False
         pre_failure_exit_code = 0
         for c in r.pre_commands:
-            cmd_list = c.command if isinstance(c.command, list) else [c.command]
+            display = _interp_aux_command(c, output_dir)
             if flags.dry_run:
-                logger.info("[pre:%s] (dry-run) %s", c.name, shlex.join(cmd_list))
+                logger.info("[pre:%s] (dry-run) %s", c.name, shlex.join(display))
                 continue
-            rc = _run_aux_command(c, output_dir, run_env, "pre")
+            rc = _run_aux_command(c, output_dir, "pre")
             _log_aux_files(backend_list, output_dir, c.name, "pre")
             if rc != 0:
                 logger.error(
@@ -671,12 +672,12 @@ class Runner:
         # Skipped only if a pre-command failed (main never ran).
         if not pre_failed:
             for c in r.post_commands:
-                cmd_list = c.command if isinstance(c.command, list) else [c.command]
+                display = _interp_aux_command(c, output_dir)
                 if flags.dry_run:
-                    logger.info("[post:%s] (dry-run) %s", c.name, shlex.join(cmd_list))
+                    logger.info("[post:%s] (dry-run) %s", c.name, shlex.join(display))
                     continue
                 try:
-                    rc = _run_aux_command(c, output_dir, run_env, "post")
+                    rc = _run_aux_command(c, output_dir, "post")
                 except Exception as e:  # noqa: BLE001
                     logger.warning("Post-command %r raised: %s", c.name, e)
                     rc = -1
@@ -964,10 +965,35 @@ class Runner:
 # ---------------------------------------------------------------------------
 
 
+def _interp_aux_command(cmd: Command, output_dir: Path) -> list[str]:
+    """Interpolate ``$output`` in *cmd*'s tokens and return as a list."""
+    out = str(output_dir)
+    raw = cmd.command if isinstance(cmd.command, list) else [cmd.command]
+    return [str(_subst_output(t, out)) for t in raw]
+
+
+def _build_aux_env(cmd: Command, output_dir: Path) -> dict[str, str]:
+    """Build env for an aux command: ``os.environ`` + ``cmd.env`` (None unsets).
+
+    Does NOT inherit ``Runner.env`` / ``secret_env``.  ``$output`` is
+    interpolated in env values.  ``COLUMNS`` is set if not already present.
+    """
+    out = str(output_dir)
+    run_env: dict[str, str] = {**os.environ}
+    for k, v in cmd.env.items():
+        if v is None:
+            run_env.pop(k, None)
+        else:
+            run_env[k] = str(_subst_output(v, out))
+    if "COLUMNS" not in run_env:
+        with suppress(OSError):
+            run_env["COLUMNS"] = str(os.get_terminal_size().columns)
+    return run_env
+
+
 def _run_aux_command(
     cmd: Command,
     output_dir: Path,
-    run_env: dict[str, str],
     phase: str,
 ) -> int:
     """Run a pre/post command, streaming to terminal and writing log files.
@@ -980,7 +1006,8 @@ def _run_aux_command(
     combined_path = output_dir / f"{base}.log"
     stdout_path = output_dir / f"{base}_stdout.log"
     stderr_path = output_dir / f"{base}_stderr.log"
-    cmd_list = cmd.command if isinstance(cmd.command, list) else [cmd.command]
+    cmd_list = _interp_aux_command(cmd, output_dir)
+    run_env = _build_aux_env(cmd, output_dir)
     logger.info("[%s:%s] %s", phase, cmd.name, shlex.join(cmd_list))
 
     lock = threading.Lock()
