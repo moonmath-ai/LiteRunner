@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shlex
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, TypeGuard
@@ -316,3 +317,32 @@ class Metric:
     name: str
     pattern: str
     type: str = "float"
+
+
+@dataclass
+class Command:
+    """An auxiliary command to run before or after the main subprocess.
+
+    Useful for setup/teardown work whose output should be captured for
+    reproducibility (e.g. ``uv pip list`` to snapshot the environment, ``make``
+    to build before running).  Output is streamed to the terminal and saved to
+    ``<phase>_<name>{,_stdout,_stderr}.log`` in the run's output directory.
+
+    Args:
+        name: Identifier used in log filenames; must be filesystem-safe.
+        command: Shell command (str is split via shlex; list is used as-is).
+    """
+
+    name: str
+    command: str | list[str]
+
+    def __post_init__(self) -> None:
+        """Split string command into a list and validate name."""
+        if isinstance(self.command, str):
+            self.command = shlex.split(self.command)
+        if not self.name or "/" in self.name or "\\" in self.name:
+            msg = (
+                f"Command name {self.name!r} must be non-empty and not contain "
+                "'/' or '\\'"
+            )
+            raise ValueError(msg)

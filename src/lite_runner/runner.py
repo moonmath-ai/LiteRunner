@@ -46,6 +46,7 @@ from .params import (
     _PARAM_TYPE_MAP,
     _SKIP_INPUT,
     UNSET,
+    Command,
     Metric,
     Output,
     Param,
@@ -179,6 +180,10 @@ class Runner:
         env: Extra environment variables for the subprocess.
         secret_env: Like ``env``, but values are redacted as ``***`` in logs
             and recorded config (subprocess still receives the real value).
+        pre_commands: Auxiliary commands run before the main subprocess.
+            A non-zero exit aborts the run; output is captured to log files.
+        post_commands: Auxiliary commands run after the main subprocess.
+            Failures are logged but never abort the run.
         project: project name (default: git repo name).
         run_group: run group for sweeps.
     """
@@ -189,6 +194,8 @@ class Runner:
     metrics: list[Metric] = field(default_factory=list)
     env: dict[str, str | None] = field(default_factory=dict)
     secret_env: dict[str, str] = field(default_factory=dict)
+    pre_commands: list[Command] = field(default_factory=list)
+    post_commands: list[Command] = field(default_factory=list)
     project: str | None = None
     run_group: str | None = None
     tags: list[str] = field(default_factory=list)
@@ -597,6 +604,25 @@ class Runner:
             except Exception as e:  # noqa: BLE001, PERF203
                 logger.warning("%s pre-run logging failed: %s", type(b).__name__, e)
 
+        # Pre-commands: abort the run if any fails (non-zero exit)
+        run_env = r._build_run_env()  # noqa: SLF001
+        pre_failed = False
+        pre_failure_exit_code = 0
+        for c in r.pre_commands:
+            cmd_list = c.command if isinstance(c.command, list) else [c.command]
+            if flags.dry_run:
+                logger.info("[pre:%s] (dry-run) %s", c.name, shlex.join(cmd_list))
+                continue
+            rc = _run_aux_command(c, output_dir, run_env, "pre")
+            _log_aux_files(backend_list, output_dir, c.name, "pre")
+            if rc != 0:
+                logger.error(
+                    "Pre-command %r failed (exit %d); aborting run", c.name, rc
+                )
+                pre_failed = True
+                pre_failure_exit_code = rc
+                break
+
         # Build command
         cmd = r.build_command(interpolated_params)
         for b in backend_list:
@@ -615,14 +641,20 @@ class Runner:
             logger.info("Env: %s", " ; ".join(parts))
         logger.info("Command:\n%s", shlex.join(cmd))
 
-        # Execute
+        # Execute (skipped if a pre-command failed)
         logger.info(
             "Run started at %s",
             datetime.datetime.now(tz=datetime.timezone.utc)
             .astimezone()
             .strftime("%H:%M:%S %Z (%z)"),
         )
-        if not flags.dry_run:
+        if pre_failed:
+            exit_code = pre_failure_exit_code
+            duration = 0.0
+            stdout_text = ""
+            stderr_text = ""
+            aborted = False
+        elif not flags.dry_run:
             exit_code, duration, stdout_text, stderr_text, aborted = r.execute(
                 cmd, output_dir
             )
@@ -634,6 +666,25 @@ class Runner:
             aborted = False
 
         logger.info("Run finished")
+
+        # Post-commands: best-effort, never abort the run.
+        # Skipped only if a pre-command failed (main never ran).
+        if not pre_failed:
+            for c in r.post_commands:
+                cmd_list = c.command if isinstance(c.command, list) else [c.command]
+                if flags.dry_run:
+                    logger.info("[post:%s] (dry-run) %s", c.name, shlex.join(cmd_list))
+                    continue
+                try:
+                    rc = _run_aux_command(c, output_dir, run_env, "post")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("Post-command %r raised: %s", c.name, e)
+                    rc = -1
+                _log_aux_files(backend_list, output_dir, c.name, "post")
+                if rc != 0:
+                    logger.warning(
+                        "Post-command %r failed (exit %d); continuing", c.name, rc
+                    )
 
         # Post-run: never raise, always try to finish backends
         r.post_run(
@@ -795,6 +846,24 @@ class Runner:
     # Subprocess execution
     # -----------------------------------------------------------------------
 
+    def _build_run_env(self) -> dict[str, str]:
+        """Build the environment dict for subprocess execution.
+
+        Inherits ``os.environ``, applies ``self.env`` (None unsets a key),
+        layers ``self.secret_env`` on top, and ensures ``COLUMNS`` is set.
+        """
+        run_env: dict[str, str] = {**os.environ}
+        for k, v in self.env.items():
+            if v is None:
+                run_env.pop(k, None)
+            else:
+                run_env[k] = v
+        run_env.update(self.secret_env)
+        if "COLUMNS" not in run_env:
+            with suppress(OSError):
+                run_env["COLUMNS"] = str(os.get_terminal_size().columns)
+        return run_env
+
     def execute(
         self, cmd: list[str], output_dir: Path
     ) -> tuple[int, float, str, str, bool]:
@@ -835,16 +904,7 @@ class Runner:
             log_stdout = stack.enter_context((output_dir / "stdout.log").open("w"))
             log_stderr = stack.enter_context((output_dir / "stderr.log").open("w"))
 
-            run_env: dict[str, str] = {**os.environ}
-            for k, v in self.env.items():
-                if v is None:
-                    run_env.pop(k, None)
-                else:
-                    run_env[k] = v
-            run_env.update(self.secret_env)
-            if "COLUMNS" not in run_env:
-                with suppress(OSError):
-                    run_env["COLUMNS"] = str(os.get_terminal_size().columns)
+            run_env = self._build_run_env()
 
             proc = subprocess.Popen(  # noqa: S603
                 cmd,
@@ -902,6 +962,96 @@ class Runner:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _run_aux_command(
+    cmd: Command,
+    output_dir: Path,
+    run_env: dict[str, str],
+    phase: str,
+) -> int:
+    """Run a pre/post command, streaming to terminal and writing log files.
+
+    Writes ``<phase>_<name>.log`` (combined) plus ``<phase>_<name>_stdout.log``
+    and ``<phase>_<name>_stderr.log``.  Returns the exit code; never raises
+    on a non-zero exit.
+    """
+    base = f"{phase}_{cmd.name}"
+    combined_path = output_dir / f"{base}.log"
+    stdout_path = output_dir / f"{base}_stdout.log"
+    stderr_path = output_dir / f"{base}_stderr.log"
+    cmd_list = cmd.command if isinstance(cmd.command, list) else [cmd.command]
+    logger.info("[%s:%s] %s", phase, cmd.name, shlex.join(cmd_list))
+
+    lock = threading.Lock()
+
+    with ExitStack() as stack:
+        combined = stack.enter_context(combined_path.open("w"))
+        log_stdout = stack.enter_context(stdout_path.open("w"))
+        log_stderr = stack.enter_context(stderr_path.open("w"))
+
+        def stream(
+            pipe: IO[bytes],
+            sys_stream: TextIO,
+            file_log: TextIO,
+            *,
+            prefix: str = "",
+        ) -> None:
+            while True:
+                chunk = pipe.read1(8192) if hasattr(pipe, "read1") else pipe.read(8192)
+                if not chunk:
+                    break
+                text = chunk.decode("utf-8", errors="replace")
+                sys_stream.write(text)
+                sys_stream.flush()
+                file_log.write(text)
+                file_log.flush()
+                with lock:
+                    combined.write(prefix + text if prefix else text)
+                    combined.flush()
+            pipe.close()
+
+        proc = subprocess.Popen(  # noqa: S603
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=run_env,
+        )
+        assert proc.stdout is not None  # noqa: S101
+        assert proc.stderr is not None  # noqa: S101
+        t_out = threading.Thread(
+            target=stream, args=(proc.stdout, sys.stdout, log_stdout)
+        )
+        t_err = threading.Thread(
+            target=stream,
+            args=(proc.stderr, sys.stderr, log_stderr),
+            kwargs={"prefix": "[stderr] "},
+        )
+        t_out.start()
+        t_err.start()
+        proc.wait()
+        t_out.join()
+        t_err.join()
+        return proc.returncode
+
+
+def _log_aux_files(
+    backends: Sequence[LogBackend],
+    output_dir: Path,
+    cmd_name: str,
+    phase: str,
+) -> None:
+    """Upload aux-command log files to all backends as text artifacts."""
+    base = f"{phase}_{cmd_name}"
+    for suffix in ("", "_stdout", "_stderr"):
+        path = output_dir / f"{base}{suffix}.log"
+        if not path.exists():
+            continue
+        for b in backends:
+            try:
+                b.log_file(path, "text", f"{phase}/{cmd_name}{suffix}")
+            except Exception as e:  # noqa: BLE001, PERF203
+                logger.warning("%s log %s failed: %s", type(b).__name__, path.name, e)
 
 
 def _subst_output(v: object, out: str) -> object:

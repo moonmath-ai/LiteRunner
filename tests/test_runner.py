@@ -11,7 +11,7 @@ import git
 import pytest
 from conftest import _FAKE_GIT_INFO, _make_runner, _mock_wb_run
 
-from lite_runner import UNSET, Metric, Param, Runner
+from lite_runner import UNSET, Command, Metric, Param, Runner
 from lite_runner.backends import DryRunBackend, JsonBackend
 from lite_runner.runner import (
     _collect_git_info,
@@ -1193,6 +1193,129 @@ def test_full_run_no_wandb(tmp_path: Path) -> None:
 
     # wandb url should indicate no wandb
     assert run_info["config"]["wandb/url"] == "(no wandb)"
+
+
+def _run_with_aux(
+    tmp_path: Path,
+    *,
+    pre_commands: list[Command] | None = None,
+    post_commands: list[Command] | None = None,
+    main_exit: int = 0,
+) -> Path:
+    """Run a Runner with given aux commands and return its output_dir."""
+    main_cmd = (
+        f"{sys.executable} -c \"import sys; print('main'); sys.exit({main_exit})\""
+    )
+    runner = Runner(
+        command=main_cmd,
+        params=[],
+        pre_commands=pre_commands or [],
+        post_commands=post_commands or [],
+    )
+    with (
+        patch("lite_runner.runner._collect_git_info", return_value=_FAKE_GIT_INFO),
+        patch("lite_runner.backends.create_repo_archive", return_value=None),
+        patch("lite_runner.backends.create_repo_diff", return_value=None),
+        patch("lite_runner.runner.RUNS_DIR", tmp_path / "lite_runs"),
+        pytest.MonkeyPatch.context() as mp,
+    ):
+        mp.setattr(sys, "exit", lambda _code=0: None)
+        runner.run(no_wandb=True, no_interactive=True)
+    project_dir = tmp_path / "lite_runs" / "test-repo"
+    return next(project_dir.iterdir())
+
+
+def test_pre_command_runs_and_writes_logs(tmp_path: Path) -> None:
+    """Pre-command runs before main, output captured to pre_<name>*.log files."""
+    output_dir = _run_with_aux(
+        tmp_path,
+        pre_commands=[
+            Command(
+                name="snap",
+                command=f"{sys.executable} -c \"print('pre-out'); "
+                "import sys; print('pre-err', file=sys.stderr)\"",
+            ),
+        ],
+    )
+    assert (output_dir / "pre_snap.log").exists()
+    assert "pre-out" in (output_dir / "pre_snap_stdout.log").read_text()
+    assert "pre-err" in (output_dir / "pre_snap_stderr.log").read_text()
+    # main also ran
+    assert "main" in (output_dir / "stdout.log").read_text()
+
+
+def test_pre_command_failure_skips_main(tmp_path: Path) -> None:
+    """A non-zero pre-command aborts the run; main is not executed."""
+    output_dir = _run_with_aux(
+        tmp_path,
+        pre_commands=[
+            Command(
+                name="bad",
+                command=f'{sys.executable} -c "import sys; sys.exit(7)"',
+            ),
+        ],
+    )
+    # pre log written
+    assert (output_dir / "pre_bad_stdout.log").exists()
+    # main never ran (its log file is created only inside execute())
+    assert not (output_dir / "stdout.log").exists()
+    # exit code recorded as the pre-command failure
+    run_info = json.loads((output_dir / "run_info.json").read_text())
+    assert run_info["summary"]["exit_code"] == 7
+    assert run_info["summary"]["status"] == "failed"
+
+
+def test_post_command_runs_after_main(tmp_path: Path) -> None:
+    """Post-command runs after main, output captured to post_<name>*.log."""
+    output_dir = _run_with_aux(
+        tmp_path,
+        post_commands=[
+            Command(name="cleanup", command=f"{sys.executable} -c \"print('after')\""),
+        ],
+    )
+    assert "after" in (output_dir / "post_cleanup_stdout.log").read_text()
+
+
+def test_post_command_failure_does_not_abort(tmp_path: Path) -> None:
+    """A failing post-command logs a warning but doesn't change run outcome."""
+    output_dir = _run_with_aux(
+        tmp_path,
+        post_commands=[
+            Command(
+                name="bad",
+                command=f'{sys.executable} -c "import sys; sys.exit(3)"',
+            ),
+        ],
+    )
+    run_info = json.loads((output_dir / "run_info.json").read_text())
+    # main exit was 0; post failure shouldn't change that
+    assert run_info["summary"]["exit_code"] == 0
+    assert run_info["summary"]["status"] == "success"
+    assert (output_dir / "post_bad_stdout.log").exists()
+
+
+def test_post_command_skipped_when_pre_fails(tmp_path: Path) -> None:
+    """If a pre-command fails, post-commands don't run."""
+    output_dir = _run_with_aux(
+        tmp_path,
+        pre_commands=[
+            Command(
+                name="bad",
+                command=f'{sys.executable} -c "import sys; sys.exit(1)"',
+            ),
+        ],
+        post_commands=[
+            Command(name="never", command=f"{sys.executable} -c \"print('nope')\""),
+        ],
+    )
+    assert not (output_dir / "post_never_stdout.log").exists()
+
+
+def test_command_name_validation() -> None:
+    with pytest.raises(ValueError, match="must be non-empty"):
+        Command(name="", command="echo hi")
+    with pytest.raises(ValueError, match="must be non-empty"):
+        Command(name="bad/name", command="echo hi")
 
 
 def test_input_files_copied_to_output_dir(tmp_path: Path) -> None:
