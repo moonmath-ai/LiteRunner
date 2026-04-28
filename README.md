@@ -254,14 +254,15 @@ Methods:
 
 ## What gets logged to W&B
 
-| Location                | Content                                             |
-| ----------------------- | --------------------------------------------------- |
-| `run.config["param/*"]` | All param values                                    |
-| `run.config["git/*"]`   | commit, branch, repo, dirty                         |
-| `run.config["meta/*"]`  | hostname, datetime, command                         |
-| `run.summary`           | exit_code, duration_seconds, status, metrics        |
-| Artifacts               | Log files, code snapshot, artifact-type outputs     |
-| Media                   | Videos and images from `path-*` type params/outputs |
+| Location                       | Content                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| `run.config["param/*"]`        | All param values                                                                         |
+| `run.config["param_source/*"]` | Where each param value came from (cli, default, fixed, override, prompt)                 |
+| `run.config["git/*"]`          | commit, branch, repo, dirty                                                              |
+| `run.config["meta/*"]`         | hostname, user, cwd, datetime, command, full_command, output_dir, env (secrets as `***`) |
+| `run.summary`                  | exit_code, duration_seconds, status, metrics                                             |
+| Artifacts                      | Log files, code snapshot, artifact-type outputs                                          |
+| Media                          | Videos and images from `path-*` type params/outputs                                      |
 
 ## Using with Claude Code
 
