@@ -202,6 +202,9 @@ Runner(
         "CUDA_VISIBLE_DEVICES": "0",
         "NOISY_VAR": None,
     },                        # set or unset env vars
+    secret_env={
+        "HF_TOKEN": "hf_xxx",
+    },                        # like env, but redacted in logs / recorded config
     project="my-project",     # default: git repo name
     run_group="my-sweep",     # W&B run group for sweeps (None = no grouping)
 )
