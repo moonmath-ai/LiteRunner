@@ -1127,12 +1127,16 @@ def test_full_run_no_wandb(tmp_path: Path) -> None:
     """--no-wandb skips W&B but still runs command and writes run_info.json."""
     runner = Runner(
         command=(
-            f"{sys.executable} -c \"import sys; print('hello'); print('x=42.0')\""
+            f'{sys.executable} -c "import os, sys; '
+            "print('hello'); print('x=42.0'); "
+            "print('TOKEN=' + os.environ['MY_TOKEN'])\""
         ),
         params=[],
         metrics=[Metric("val", pattern=r"x=([\d.]+)")],
         tags=["v1"],
         run_group="test-group",
+        env={"MY_FLAG": "1", "DROP_ME": None},
+        secret_env={"MY_TOKEN": "supersecret"},
     )
 
     with (
@@ -1159,6 +1163,17 @@ def test_full_run_no_wandb(tmp_path: Path) -> None:
     # Check config
     assert run_info["config"]["git/repo"] == "test-repo"
     assert run_info["config"]["meta/output_dir"] == str(output_dir)
+    assert run_info["config"]["meta/env"] == {
+        "MY_FLAG": "1",
+        "DROP_ME": None,
+        "MY_TOKEN": "***",
+    }
+    assert run_info["config"]["meta/cwd"]
+    assert run_info["config"]["meta/user"]
+
+    # secret reaches the subprocess, but does not leak into recorded JSON
+    assert "TOKEN=supersecret" in (output_dir / "stdout.log").read_text()
+    assert "supersecret" not in run_info_path.read_text()
 
     # Check metrics extracted
     assert run_info["metrics"]["val"] == 42.0
