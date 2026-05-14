@@ -2,7 +2,7 @@
 # /// script
 # dependencies = [
 #     "huggingface_hub",
-#     "lite-runner @ git+https://github.com/moonmath-ai/LiteRunner",
+#     "lite-runner",
 # ]
 # ///
 """Run config for LTX-2 two-stage text/image-to-video pipeline."""

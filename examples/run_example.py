@@ -1,4 +1,7 @@
-# Run with: uv run python examples/run_example.py
+#!/usr/bin/env -S uv run
+# /// script
+# dependencies = ["lite-runner"]
+# ///
 """Example run config for the fake model."""
 
 from lite_runner import Metric, Output, Param, Runner

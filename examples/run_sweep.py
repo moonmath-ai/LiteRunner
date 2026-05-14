@@ -1,4 +1,7 @@
-# Run with: uv run python examples/run_sweep.py
+#!/usr/bin/env -S uv run
+# /// script
+# dependencies = ["lite-runner"]
+# ///
 """Example sweep: same model, varying threshold and mode."""
 
 from lite_runner import Metric, Param, Runner
