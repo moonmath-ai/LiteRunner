@@ -69,6 +69,9 @@ dev = [
   "pre-commit ~=4.0",
   "black ~=26.1",
   "ruff ~=0.15.0",
+  ## used by examples/ (so devs can iterate without rebuilding inline-script envs)
+  "tqdm >=4.0",
+  "huggingface_hub >=0.20",
 ]
 test = [
   "pytest ~=9.0",

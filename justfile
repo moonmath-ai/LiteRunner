@@ -162,3 +162,7 @@ serve-docs: build-docs-ref
   uv run --exact --python 3.14 --only-group docs -- \
     mkdocs serve
   uv run --exact true
+
+# Record the README demo GIF (requires `brew install vhs`)
+record-demo:
+  vhs examples/demo.tape
