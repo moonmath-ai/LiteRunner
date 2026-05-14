@@ -12,16 +12,40 @@
 
 ## Overview
 
-Runner for generative models with local and W&B tracking.
+Add MLOps-style experiment tracking to any CLI command, without modifying the model's code.
 
-Write a small Python script per model that declares params, outputs, and metrics.
-`lite-runner` handles the rest: CLI parsing, interactive prompts for missing values,
-subprocess execution, stdout/stderr capture, metric extraction, file uploads to W&B,
-and code snapshots for reproducibility.
+Got a command (say, a generative model) that runs from the terminal? Write a small
+`run.py` declaring its inputs, outputs, and metrics; `lite-runner` then upgrades each
+run in four ways without touching the source code:
+
+1. **History of every run.** Inputs, outputs, logs, code, and metadata are captured
+   locally to `~/lite_runs/`. Optionally uploaded to a backend of your choice (currently
+   supporting Weights & Biases).
+1. **Better ergonomics.** Set your own defaults per param. Fill in missing values via an
+   interactive TUI instead of editing the command line. Keep one `run.py` per scenario
+   so you don't re-remember the right flags.
+1. **Bridge from terminal to Python.** Drive the CLI from Python, so a sweep is a plain
+   `for` loop instead of a shell script.
+1. **No lock-in.** Underneath, `lite-runner` builds and runs a normal shell command,
+   which is logged with every run. You can copy-paste it and reproduce the run without
+   `lite-runner` in the loop.
 
 ## Quick start
 
-Create a `run.py` for your model:
+Two ways to get a `run.py` for your model:
+
+**1. Let Claude Code write it.** Install the bundled
+[Claude Code](https://claude.com/claude-code) skill (`lite-runner`), which knows the API
+and writes idiomatic `run.py` scripts (and sweeps) for any command you point it at:
+
+Inside Claude Code:
+
+```text
+/plugin marketplace add moonmath-ai/LiteRunner
+/plugin install lite-runner@lite-runner-marketplace
+```
+
+**2. Write it by hand.** Create `run.py`:
 
 ```python
 #!/usr/bin/env -S uv run
@@ -59,16 +83,39 @@ chmod +x run.py
 
 ## What it does
 
-Each `runner.run()` call:
+Each `runner.run()` call records the run to
+`~/lite_runs/<project>/<timestamp>_<run_name>/`, and mirrors it to Weights & Biases
+when enabled:
 
 1. Parses CLI args (all params are optional in argparse; missing ones trigger TUI prompts)
-1. Creates an output directory at `~/lite_runs/<project>/<timestamp>_<run_name>/`
-1. Inits a W&B run and logs all params, git info, and host metadata
-1. Saves a code snapshot (git archive + dirty diff) as a W&B artifact
-1. Builds and runs the subprocess, streaming stdout/stderr to terminal and log files
+1. Creates the output directory
+1. Saves a code snapshot under `code/` (git archive, plus `dirty.patch` if there are uncommitted changes)
+1. Copies input files under `input/`
+1. Builds and runs the subprocess, streaming stdout/stderr to terminal and to log files
 1. Extracts metrics from stdout via regex
-1. Uploads output files (videos, images, artifacts) to W&B
-1. Logs duration, exit code, and status to W&B summary
+1. Records output files (videos, images, artifacts)
+1. Writes `run_info.json` with params, git info, metadata, metrics, and exit status
+
+## When to use this
+
+`lite-runner` is built for the case where you're running a model someone else wrote
+(HuggingFace, a GitHub clone, a vendor binary) that you can't edit, or don't want to.
+It wraps the existing CLI, so the model code stays untouched.
+
+Reach for it when:
+
+- You want params, outputs, and metrics tracked without adding tracking code to the model.
+- You want interactive prompts when you forget a param, not an argparse error.
+- You want sweeps as a plain Python for-loop, not a YAML config.
+- You want a code snapshot saved with every run, even when the code isn't yours.
+
+Reach for something else when:
+
+- You own the model code and are happy adding tracking calls directly: W&B's native SDK
+  is more powerful (per-step metrics, custom charts, system metrics).
+- You need hierarchical, composable configs: [Hydra](https://hydra.cc/) is built for that.
+- You need a server-side sweep scheduler that hands out jobs across machines: use
+  [`wandb sweep`](https://docs.wandb.ai/guides/sweeps/).
 
 ## Param
 
@@ -252,7 +299,15 @@ Methods:
 | `--run-name NAME`        | Override W&B run name                         |
 | `--project NAME`         | Override project name                         |
 
-## What gets logged to W&B
+## What gets logged
+
+Every run writes to `~/lite_runs/<project>/<timestamp>_<run_name>/`:
+`run_info.json` (structured metadata), `run.log` / `stdout.log` / `stderr.log`,
+the code snapshot under `code/` (`source.tar.gz` + `dirty.patch` if the repo has
+uncommitted changes), copies of input files under `input/`,
+and any output files the command produces.
+
+When W&B is enabled (the default), the same data is also uploaded:
 
 | Location                       | Content                                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------------------------- |
@@ -264,18 +319,8 @@ Methods:
 | Artifacts                      | Log files, code snapshot, artifact-type outputs                                          |
 | Media                          | Videos and images from `path-*` type params/outputs                                      |
 
-## Using with Claude Code
-
-This repo is also a [Claude Code](https://claude.com/claude-code) plugin
-marketplace. Install the `lite-runner` skill so Claude Code writes
-idiomatic `run.py` scripts and drives sweeps correctly:
-
-```text
-/plugin marketplace add moonmath-ai/LiteRunner
-/plugin install lite-runner@lite-runner-marketplace
-```
-
-See [`plugins/lite-runner/`](plugins/lite-runner/) for the plugin source.
+In `run_info.json` these are under top-level keys `metadata`, `config`, `metrics`,
+`summary`, and `files_logged`.
 
 ## Contributing
 
