@@ -10,7 +10,7 @@
 #
 # Output: examples/demo.gif
 
-Output examples/demo.gif
+Output docs/demo.gif
 
 Set Shell bash
 Set FontSize 16
@@ -19,17 +19,24 @@ Set Height 650
 Set TypingSpeed 40ms
 Set Padding 12
 
-Type "./examples/run_example.py --prompt 'a cat walking on the beach' --no-wandb"
+Type "./examples/run_example.py --prompt 'a cat walking on the beach'"
 Sleep 500ms
 Enter
-Sleep 6s
+Sleep 1s
 
-Type "ls ~/lite_runs/lite-runner/$(ls -t ~/lite_runs/lite-runner | head -1)/"
-Sleep 300ms
+# Step through the 4 TUI prompts:
+# image[path], image[start_frame] — accept defaults.
+# image[strength] — edit the default 0.8 → 0.9 to show interactive editing.
+# seed — accept default.
 Enter
-Sleep 2s
-
-Type "cat ~/lite_runs/lite-runner/$(ls -t ~/lite_runs/lite-runner | head -1)/run_info.json | head -40"
-Sleep 300ms
+Sleep 400ms
 Enter
-Sleep 4s
+Sleep 400ms
+Backspace
+Sleep 200ms
+Type "9"
+Sleep 400ms
+Enter
+Sleep 400ms
+Enter
+Sleep 10s

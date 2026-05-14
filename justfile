@@ -165,4 +165,4 @@ serve-docs: build-docs-ref
 
 # Record the README demo GIF (requires `brew install vhs`)
 record-demo:
-  vhs examples/demo.tape
+  vhs scripts/demo.tape
