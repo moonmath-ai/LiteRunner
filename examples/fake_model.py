@@ -32,23 +32,18 @@ def main() -> None:
         "--image", nargs="+", default=None, help="Input image path + frame + strength"
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--threshold", type=float, default=-3.2)
-    parser.add_argument("--mode", choices=["calib", "fast", "quality"], default="calib")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
     rng = random.Random(args.seed)  # noqa: S311  # deterministic demo, not crypto
 
-    print("Loading checkpoint: fake-video-diffusion-v2.safetensors", flush=True)
+    print("Loading checkpoint: video-diffusion-v2.safetensors", flush=True)
     time.sleep(0.2)
     print("Moved model to cuda:0  (13.4 GiB / 24.0 GiB allocated)", flush=True)
     time.sleep(0.1)
     print("Text encoder, VAE, transformer ready", flush=True)
     print(f"prompt: {args.prompt!r}", flush=True)
-    print(
-        f"seed={args.seed}  mode={args.mode}  threshold={args.threshold}",
-        flush=True,
-    )
+    print(f"seed: {args.seed}", flush=True)
     print(
         "UserWarning: torch.cuda.amp.autocast is deprecated, "
         "use torch.amp.autocast instead",
@@ -86,7 +81,6 @@ def main() -> None:
     meta = {
         "prompt": args.prompt,
         "seed": args.seed,
-        "threshold": args.threshold,
         "final_loss": loss,
     }
     Path("model_metadata.json").write_text(json.dumps(meta, indent=2))

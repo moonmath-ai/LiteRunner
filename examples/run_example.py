@@ -17,13 +17,6 @@ runner = Runner(
             labels=["path", "start_frame", "strength"],
             default=["examples/fake_input.jpg", "0", "0.8"],
         ),
-        Param("threshold", type="float", default=-3.2, help="Attention threshold"),
-        Param(
-            "mode",
-            choices=["calib", "fast", "quality"],
-            default="calib",
-            help="Generation mode",
-        ),
         Param("seed", type="int", default=42, help="Random seed"),
         Param("output-path", value="$output/video.mp4", type="path-video"),
         Param("debug-output", value="$output/debug.pt", type="path-artifact"),

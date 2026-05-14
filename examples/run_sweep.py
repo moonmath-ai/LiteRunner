@@ -2,7 +2,7 @@
 # /// script
 # dependencies = ["lite-runner"]
 # ///
-"""Example sweep: same model, varying threshold and mode."""
+"""Example sweep: same prompt, varying seed."""
 
 from lite_runner import Metric, Param, Runner
 
@@ -10,13 +10,6 @@ runner = Runner(
     command="./examples/fake_model.py",
     params=[
         Param("prompt", help="Text prompt for generation"),
-        Param("threshold", type="float", default=-3.2, help="Attention threshold"),
-        Param(
-            "mode",
-            choices=["calib", "fast", "quality"],
-            default="calib",
-            help="Generation mode",
-        ),
         Param("seed", type="int", default=42, help="Random seed"),
         Param("output-path", value="$output/video.mp4", type="path-video"),
     ],
@@ -24,13 +17,13 @@ runner = Runner(
         Metric("loss", pattern=r"final loss=([\d.]+)"),
         Metric("skipped_pct", pattern=r"skipped=([\d.]+)%"),
     ],
-    tags=["sweep", "threshold"],
-    run_group="threshold-sweep",  # groups all runs in W&B UI
+    tags=["sweep", "seed"],
+    run_group="seed-sweep",  # groups all runs in W&B UI
 )
 
 if __name__ == "__main__":
-    for thresh in [-10, -3, -1, 0]:
+    for s in [42, 123, 456, 789]:
         print(f"\n{'=' * 60}")
-        print(f"SWEEP: threshold={thresh}")
+        print(f"SWEEP: seed={s}")
         print(f"{'=' * 60}\n")
-        runner.override(threshold=thresh).run(no_interactive=True)
+        runner.override(seed=s).run(no_interactive=True)
