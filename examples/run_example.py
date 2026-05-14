@@ -7,7 +7,7 @@
 from lite_runner import Metric, Output, Param, Runner
 
 runner = Runner(
-    command="python examples/fake_model.py",
+    command="./examples/fake_model.py",
     params=[
         Param("prompt", help="Text prompt for generation"),
         Param(
@@ -37,8 +37,9 @@ runner = Runner(
         ),
     ],
     metrics=[
+        Metric("loss", pattern=r"final loss=([\d.]+)"),
         Metric("skipped_pct", pattern=r"skipped=([\d.]+)%"),
-        Metric("part3_ms", pattern=r"finished part 3, ([\d.]+)ms"),
+        Metric("decode_ms", pattern=r"decoded \d+ frames in ([\d.]+)ms", type="int"),
     ],
     tags=["example"],
     env={"FAKE_MODEL_DEBUG": "1"},

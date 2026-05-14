@@ -7,7 +7,7 @@
 from lite_runner import Metric, Param, Runner
 
 runner = Runner(
-    command="python examples/fake_model.py",
+    command="./examples/fake_model.py",
     params=[
         Param("prompt", help="Text prompt for generation"),
         Param("threshold", type="float", default=-3.2, help="Attention threshold"),
@@ -21,6 +21,7 @@ runner = Runner(
         Param("output-path", value="$output/video.mp4", type="path-video"),
     ],
     metrics=[
+        Metric("loss", pattern=r"final loss=([\d.]+)"),
         Metric("skipped_pct", pattern=r"skipped=([\d.]+)%"),
     ],
     tags=["sweep", "threshold"],
