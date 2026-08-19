@@ -811,8 +811,10 @@ def test_execute_env_none_removes_var(tmp_path: Path) -> None:
     cmd = [
         sys.executable,
         "-c",
-        "import os,json; print(json.dumps("
-        "{'FOO':os.environ.get('FOO'),'PATH':os.environ.get('PATH')}))",
+        (
+            "import os,json; print(json.dumps("
+            "{'FOO':os.environ.get('FOO'),'PATH':os.environ.get('PATH')}))"
+        ),
     ]
     exit_code, _, stdout_text, _, _ = runner.execute(cmd, tmp_path)
     assert exit_code == 0
