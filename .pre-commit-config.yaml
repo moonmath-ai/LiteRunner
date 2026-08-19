@@ -15,17 +15,17 @@ repos:
   # Sync Python and pre-commit package versions
   # pyproject.toml -> uv.lock
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.11.13
+    rev: 0.12.5
     hooks:
       - id: uv-lock
   # uv.lock -> .pre-commit-config.yaml
   - repo: https://github.com/tsvikas/sync-with-uv
-    rev: v0.5.0
+    rev: v0.6.0
     hooks:
       - id: sync-with-uv
   # .pre-commit-config.yaml -> .pre-commit-config.yaml
   - repo: https://github.com/pre-commit/sync-pre-commit-deps
-    rev: v0.0.3
+    rev: v0.0.5
     hooks:
       - id: sync-pre-commit-deps
         args: [--yaml-mapping, '2', --yaml-sequence, '4', --yaml-offset, '2']
@@ -97,22 +97,22 @@ repos:
 
   # All files
   - repo: https://github.com/editorconfig-checker/editorconfig-checker.python
-    rev: 3.6.1
+    rev: 3.11.1
     hooks:
       - id: editorconfig-checker
         exclude_types: [jupyter]
   - repo: https://github.com/google/keep-sorted
-    rev: v0.8.0
+    rev: v0.9.1
     hooks:
       - id: keep-sorted
 
   # Spell checking
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.2
+    rev: v2.4.3
     hooks:
       - id: codespell
   - repo: https://github.com/adhtruong/mirrors-typos
-    rev: v1.46.1
+    rev: v1.49.0
     hooks:
       - id: typos
   - repo: local
@@ -132,6 +132,7 @@ repos:
         additional_dependencies:
           - mdformat-gfm
           - mdformat-footnote
+          - mdformat-frontmatter
           - mdformat-gfm-alerts
           - mdformat-frontmatter
 
@@ -142,28 +143,19 @@ repos:
       - id: doc8
 
   # Python files
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.3.1
-    hooks:
-      # used to keep the blacken-docs in sync
-      - id: black
-        stages: [manual]
-  - repo: https://github.com/adamchainz/blacken-docs
-    rev: 1.20.0
-    hooks:
-      - id: blacken-docs
-        additional_dependencies: [black==26.3.1]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.12
+    rev: v0.16.3
     hooks:
       - id: ruff-check
         alias: ruff-isort
         name: ruff isort
         args: [--select, I001, --fix]
       - id: ruff-format
+        types_or: [python, pyi, jupyter, markdown]
       - id: ruff-check
+        types_or: [python, pyi, jupyter, pyproject]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.2
+    rev: v2.3.1
     hooks:
       - id: mypy
         name: mypy (without imports)
@@ -185,7 +177,7 @@ repos:
 
   # pyproject.toml
   - repo: https://github.com/henryiii/validate-pyproject-schema-store
-    rev: 2026.05.06
+    rev: 2026.08.15
     hooks:
       - id: validate-pyproject
 
@@ -197,7 +189,7 @@ repos:
 
   # GitHub files
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.37.2
+    rev: 0.38.0
     hooks:
       - id: check-dependabot
       - id: check-github-actions
@@ -207,8 +199,8 @@ repos:
     rev: v1.7.12
     hooks:
       - id: actionlint
-  - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.24.1
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.29.0
     hooks:
       - id: zizmor
 

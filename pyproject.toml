@@ -66,9 +66,8 @@ dependencies = [
 dev = [
   ## used in the justfile
   "rust-just ~=1.0",
-  "pre-commit ~=4.0",
-  "black ~=26.1",
-  "ruff ~=0.15.0",
+  "prek ~=0.4.0",
+  "ruff ~=0.16.0",
 ]
 test = [
   "pytest ~=9.0",
@@ -97,15 +96,18 @@ docs = [
   "mkdocs-section-index ~=0.3.0",
 ]
 typing = [
-  "mypy[native-parser] ~=1.20.0",
+  "mypy ~=2.3.0",
   "ty ~=0.0",
   # add "*-stubs" and "types-*" packages here (">=0")
 ]
 
 
 [tool.uv]
-required-version = ">=0.7.3"
+required-version = ">=0.10.12"
 default-groups = ["dev", "test", "typing"]
+# Minimum age guard: only consider package versions released at least 24h ago,
+# as a lightweight supply-chain defense against just-published malicious releases.
+exclude-newer = "24 hours"
 
 
 [tool.hatch]
@@ -169,10 +171,9 @@ mypy_path = "stubs"
 fixed_format_cache = true
 # set the platform
 python_version = "3.10"
-# enable checks [last updated: mypy 1.20]
+# enable checks [last updated: mypy 2.3]
 strict = true
 strict_equality_for_none = true
-local_partial_types = true
 disallow_any_unimported = true
 warn_unreachable = true
 disallow_any_explicit = true
@@ -216,6 +217,8 @@ ignore = [
   # needed only in large codebases
   "TD002",    # flake8-todos/missing-todo-author
   "TD003",    # flake8-todos/missing-todo-link
+  # needed only with a per-file copyright policy
+  "CPY001",   # flake8-copyright/missing-copyright-notice
   # incompatible with other rules
   "COM812",   # flake8-commas/missing-trailing-comma (incompatible with black)
   # disagree:
@@ -229,7 +232,11 @@ ignore = [
   #"S101",     # flake8-bandit/assert
   #"FIX00",    # flake8-fixme/line-contains-*
   #"ERA001",   # eradicate/commented-out-code
-  "PLR091",   # PyLint-Refactor/too-many-*
+  "PLR0911",  # PyLint-Refactor/too-many-return-statements
+  "PLR0912",  # PyLint-Refactor/too-many-branches
+  "PLR0913",  # PyLint-Refactor/too-many-arguments
+  "PLR0915",  # PyLint-Refactor/too-many-statements
+  "PLR0917",  # PyLint-Refactor/too-many-positional-arguments
   #"TRY003",   # tryceratops/raise-vanilla-args
 ]
 # objects that should be treated equivalently to a logging.Logger object.
@@ -238,6 +245,11 @@ logger-objects = ["loguru.logger"]
 flake8-annotations.mypy-init-return = true
 # allow `dict(a=1, b=2)`
 flake8-comprehensions.allow-dict-calls-with-keyword-arguments = true
+
+# a local `wandb/` run directory at the repo root would otherwise make isort
+# infer `wandb` as first-party
+[tool.ruff.lint.isort]
+known-third-party = ["wandb"]
 
 # flag modules or module members that may not be imported or accessed
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
@@ -273,6 +285,11 @@ flake8-comprehensions.allow-dict-calls-with-keyword-arguments = true
   "TC002",    # flake8-type-checking/typing-only-*-import
   "TC003",    # flake8-type-checking/typing-only-*-import
 ]
+
+
+[tool.typos.default.extend-identifiers]
+# a ruff rule code, not a misspelling of "copy"
+CPY001 = "CPY001"
 
 
 [tool.pylint]

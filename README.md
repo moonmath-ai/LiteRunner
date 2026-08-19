@@ -280,7 +280,7 @@ See [`plugins/lite-runner/`](plugins/lite-runner/) for the plugin source.
 ## Contributing
 
 Interested in contributing?
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guideline.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 [codecov-badge]: https://codecov.io/gh/moonmath-ai/LiteRunner/graph/badge.svg
 [codecov-link]: https://codecov.io/gh/moonmath-ai/LiteRunner
