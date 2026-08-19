@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Literal, Protocol
 
 import git
-
 import wandb
 
 from .params import _contains_unset, _log_as_from_type, is_seq

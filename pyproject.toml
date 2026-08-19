@@ -246,6 +246,11 @@ flake8-annotations.mypy-init-return = true
 # allow `dict(a=1, b=2)`
 flake8-comprehensions.allow-dict-calls-with-keyword-arguments = true
 
+# a local `wandb/` run directory at the repo root would otherwise make isort
+# infer `wandb` as first-party
+[tool.ruff.lint.isort]
+known-third-party = ["wandb"]
+
 # flag modules or module members that may not be imported or accessed
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "collections.namedtuple".msg = "Use typing.NamedTuple or @dataclasses.dataclass(frozen=True, slots=True)"
