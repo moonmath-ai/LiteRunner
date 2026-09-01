@@ -1,7 +1,7 @@
 # Run with: uv run python examples/run_example.py
 """Example run config for the fake model."""
 
-from lite_runner import Metric, Output, Param, Runner
+from lite_runner import Command, Metric, Output, Param, Runner
 
 runner = Runner(
     command="python examples/fake_model.py",
@@ -39,6 +39,14 @@ runner = Runner(
     ],
     tags=["example"],
     env={"FAKE_MODEL_DEBUG": "1"},
+    pre_commands=[
+        # Sync the env before the run; abort if it fails.
+        Command("uv-sync", "uv sync -v"),
+    ],
+    post_commands=[
+        # Snapshot the resolved package versions for reproducibility.
+        Command("uv-pip-list", "uv pip list"),
+    ],
 )
 
 if __name__ == "__main__":

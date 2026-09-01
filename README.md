@@ -165,6 +165,42 @@ Last match wins. Patterns are matched against both stdout and stderr. Stored in 
 
 Supported types: `"float"` (default), `"int"`, `"str"`, `"timedelta"`.
 
+## Pre/Post commands
+
+Run auxiliary commands before or after the main subprocess. Useful for capturing
+build steps, environment snapshots, or post-run summaries:
+
+<!-- blacken-docs:off -->
+
+```python
+from lite_runner import Command
+
+runner = Runner(
+    command="python train.py",
+    pre_commands=[
+        Command("uv-sync", "uv sync -v"),                        # sync env before run
+        Command("ls-out", "ls -la $output", env={"LC_ALL": "C"}),  # $output is interpolated
+    ],
+    post_commands=[
+        Command("uv-pip-list", "uv pip list"),                   # snapshot resolved versions
+    ],
+)
+```
+
+<!-- blacken-docs:on -->
+
+- Each command's stdout/stderr is streamed to the terminal and saved to
+  `<phase>_<name>.log` (combined), `<phase>_<name>_stdout.log`, and
+  `<phase>_<name>_stderr.log` in the run's output directory; the log files are
+  also uploaded to W&B.
+- Commands run sequentially in the order they appear in the list.
+- `$output` is interpolated in both command tokens and `env` values.
+- Each `Command` has its own optional `env` (None to unset). Aux commands do
+  **not** inherit `Runner.env` or `Runner.secret_env` — they get a clean env
+  built from `os.environ` plus per-command overrides.
+- A non-zero exit from a **pre-command** aborts the run (main and post are skipped).
+- A non-zero exit from a **post-command** is logged but does not change the run outcome.
+
 ## Sweeps
 
 Loop with `override()`. Runs are grouped in W&B for easy comparison:
@@ -205,6 +241,8 @@ Runner(
     secret_env={
         "HF_TOKEN": "hf_xxx",
     },                        # like env, but redacted in logs / recorded config
+    pre_commands=[Command("build", "make")],     # run before main; failure aborts
+    post_commands=[Command("du", "du -sh ./")],  # run after main; failure logged
     project="my-project",     # default: git repo name
     run_group="my-sweep",     # W&B run group for sweeps (None = no grouping)
 )
